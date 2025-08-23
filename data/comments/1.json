@@ -1,0 +1,60 @@
+{
+  "disputers": [
+    {
+      "id": "1703123456789-abc123def",
+      "author": "0x9999...0000",
+      "content": "I agree with the first disputer. Ghana jollof is indeed the best!",
+      "timestamp": "2024-01-01T10:30:00.000Z",
+      "upvotes": 5,
+      "downvotes": 2,
+      "type": "disputers"
+    },
+    {
+      "id": "1703123456789-def456ghi",
+      "author": "0xaaaa...bbbb",
+      "content": "The second disputer makes valid points about popularity and taste.",
+      "timestamp": "2024-01-01T11:15:00.000Z",
+      "upvotes": 3,
+      "downvotes": 1,
+      "type": "disputers"
+    }
+  ],
+  "users": [
+    {
+      "id": "1703123456789-ghi789jkl",
+      "author": "0xcccc...dddd",
+      "content": "I think both sides have merit. Ghana jollof is popular for good reasons!",
+      "timestamp": "2024-01-01T12:00:00.000Z",
+      "upvotes": 8,
+      "downvotes": 3,
+      "type": "users"
+    },
+    {
+      "id": "1703123456789-jkl012mno",
+      "author": "0xeeee...ffff",
+      "content": "This is a classic case of different preferences. Some people like spicy, others don't.",
+      "timestamp": "2024-01-01T12:45:00.000Z",
+      "upvotes": 12,
+      "downvotes": 1,
+      "type": "users"
+    },
+    {
+      "id": "1703123456789-mno345pqr",
+      "author": "0xgggg...hhhh",
+      "content": "I've never tried Ghana jollof but this debate is making me curious!",
+      "timestamp": "2024-01-01T13:00:00.000Z",
+      "upvotes": 6,
+      "downvotes": 0,
+      "type": "users"
+    },
+    {
+      "id": "1755974546235-unp41g38c",
+      "author": "0xUser...Address",
+      "content": "I think its a cool idea",
+      "timestamp": "2025-08-23T18:42:26.236Z",
+      "upvotes": 0,
+      "downvotes": 0,
+      "type": "users"
+    }
+  ]
+}

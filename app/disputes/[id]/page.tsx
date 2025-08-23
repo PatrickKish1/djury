@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Icon } from "../../../components/DemoComponents";
 import { Button } from "../../../components/DemoComponents";
+import { fetchComments, addComment, updateCommentVote, type Comment, type CommentsData, formatTimestamp } from "../../../lib/comments";
+import { useAccount } from "wagmi";
 
 // Mock dispute data - in a real app, this would come from an API
 const mockDisputes = {
@@ -137,63 +138,89 @@ const mockDisputes = {
   }
 };
 
-// Mock comments data
-const mockComments = {
-  disputers: [
-    {
-      id: 1,
-      author: "0x9999...0000",
-      content: "I agree with the first disputer. One Piece's pacing is indeed problematic.",
-      timestamp: "1h ago",
-      upvotes: 5,
-      downvotes: 2
-    },
-    {
-      id: 2,
-      author: "0xaaaa...bbbb",
-      content: "The second disputer makes valid points about character development.",
-      timestamp: "45m ago",
-      upvotes: 3,
-      downvotes: 1
-    }
-  ],
-  users: [
-    {
-      id: 1,
-      author: "0xcccc...dddd",
-      content: "I think both sides have merit. The pacing could be better but the story is engaging.",
-      timestamp: "30m ago",
-      upvotes: 8,
-      downvotes: 3
-    },
-    {
-      id: 2,
-      author: "0xeeee...ffff",
-      content: "This is a classic case of different preferences. Some people like slow burns, others don't.",
-      timestamp: "15m ago",
-      upvotes: 12,
-      downvotes: 1
-    },
-    {
-      id: 3,
-      author: "0xgggg...hhhh",
-      content: "I've never watched One Piece but this debate is making me curious.",
-      timestamp: "5m ago",
-      upvotes: 6,
-      downvotes: 0
-    }
-  ]
-};
-
 export default function DisputeDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { address, isConnected } = useAccount();
   const disputeId = Number(params.id);
   const dispute = mockDisputes[disputeId as keyof typeof mockDisputes];
   const [activeTab, setActiveTab] = useState<"disputers" | "users">("disputers");
   const [upvoted, setUpvoted] = useState(false);
   const [downvoted, setDownvoted] = useState(false);
   const [bookmarked, setBookmarked] = useState(dispute?.bookmarked || false);
+  
+  // Comments state
+  const [comments, setComments] = useState<CommentsData>({ disputers: [], users: [] });
+  const [loading, setLoading] = useState(true);
+  const [showAddComment, setShowAddComment] = useState(false);
+  const [newComment, setNewComment] = useState({
+    content: "",
+    type: activeTab as 'disputers' | 'users'
+  });
+
+  // Load comments on component mount
+  useEffect(() => {
+    if (dispute) {
+      loadComments();
+    }
+  }, [dispute]);
+
+  // Update comment type when tab changes
+  useEffect(() => {
+    setNewComment(prev => ({ ...prev, type: activeTab }));
+  }, [activeTab]);
+
+  const loadComments = async () => {
+    try {
+      setLoading(true);
+      const commentsData = await fetchComments(disputeId.toString());
+      setComments(commentsData);
+    } catch (error) {
+      console.error('Failed to load comments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.content.trim() || !isConnected || !address) return;
+
+    try {
+      const addedComment = await addComment(disputeId.toString(), {
+        author: address,
+        content: newComment.content.trim(),
+        type: newComment.type
+      });
+
+      // Update local state
+      setComments(prev => ({
+        ...prev,
+        [newComment.type]: [...prev[newComment.type], addedComment]
+      }));
+
+      // Reset form
+      setNewComment({ content: "", type: newComment.type });
+      setShowAddComment(false);
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      alert('Failed to add comment. Please try again.');
+    }
+  };
+
+  const handleCommentVote = async (commentId: string, action: 'upvote' | 'downvote') => {
+    try {
+      const updatedComment = await updateCommentVote(disputeId.toString(), commentId, action);
+      
+      // Update local state
+      setComments(prev => ({
+        disputers: prev.disputers.map(c => c.id === commentId ? updatedComment : c),
+        users: prev.users.map(c => c.id === commentId ? updatedComment : c)
+      }));
+    } catch (error) {
+      console.error('Failed to update comment vote:', error);
+    }
+  };
 
   if (!dispute) {
     return (
@@ -337,7 +364,76 @@ export default function DisputeDetailPage() {
 
         {/* Comments Section */}
         <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6">
-          <h2 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">Comments & Views</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-[var(--app-foreground)]">Comments & Views</h2>
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={loadComments}
+                disabled={loading}
+                className="bg-[var(--app-gray)] hover:bg-[var(--app-gray-dark)] text-[var(--app-foreground)]"
+              >
+                <Icon name="refresh-cw" size="sm" className="mr-2" />
+                Refresh
+              </Button>
+              <Button
+                onClick={() => setShowAddComment(!showAddComment)}
+                className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white"
+              >
+                {showAddComment ? "Cancel" : "Add Comment"}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Add Comment Form */}
+          {showAddComment && (
+            <div className="mb-6 p-4 border border-[var(--app-card-border)] rounded-lg">
+              {!isConnected ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-[var(--app-accent-light)] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Icon name="user" size="lg" className="text-[var(--app-accent)]" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 text-[var(--app-foreground)]">Wallet Required</h3>
+                  <p className="text-[var(--app-foreground-muted)] mb-6">
+                    You need to connect your wallet to add comments and participate in discussions.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      // This will trigger the wallet connection modal
+                      // The user needs to connect their wallet first
+                    }}
+                    className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white px-6 py-3"
+                  >
+                    Connect Wallet
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleAddComment} className="space-y-3">
+                  <div className="mb-3 p-3 bg-[var(--app-accent-light)] rounded-lg">
+                    <p className="text-sm text-[var(--app-foreground)]">
+                      Commenting as: <span className="font-mono text-[var(--app-accent)]">{address}</span>
+                    </p>
+                  </div>
+                  <textarea
+                    value={newComment.content}
+                    onChange={(e) => setNewComment(prev => ({ ...prev, content: e.target.value }))}
+                    placeholder={`Add your comment to the ${activeTab === 'disputers' ? 'disputers' : 'users'} discussion...`}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
+                    required
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white"
+                      disabled={!newComment.content.trim()}
+                    >
+                      Post Comment
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
           
           {/* Tabs */}
           <div className="flex space-x-1 mb-6 bg-[var(--app-gray)] rounded-lg p-1">
@@ -349,7 +445,7 @@ export default function DisputeDetailPage() {
                   : "text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
               }`}
             >
-              {`Disputers' Views`}
+              {`Disputers' Views`} ({comments.disputers.length})
             </button>
             <button
               onClick={() => setActiveTab("users")}
@@ -359,20 +455,45 @@ export default function DisputeDetailPage() {
                   : "text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
               }`}
             >
-              User Comments
+              User Comments ({comments.users.length})
             </button>
           </div>
           
           {/* Comments List */}
           <div className="space-y-4">
-            {activeTab === "disputers" ? (
-              mockComments.disputers.map((comment) => (
-                <CommentCard key={comment.id} comment={comment} />
-              ))
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--app-accent)] mx-auto"></div>
+                <p className="text-[var(--app-foreground-muted)] mt-2">Loading comments...</p>
+              </div>
+            ) : activeTab === "disputers" ? (
+              comments.disputers.length > 0 ? (
+                comments.disputers.map((comment) => (
+                  <CommentCard 
+                    key={comment.id} 
+                    comment={comment} 
+                    onVote={handleCommentVote}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-8 text-[var(--app-foreground-muted)]">
+                  No comments yet. Be the first to add your thoughts!
+                </div>
+              )
             ) : (
-              mockComments.users.map((comment) => (
-                <CommentCard key={comment.id} comment={comment} />
-              ))
+              comments.users.length > 0 ? (
+                comments.users.map((comment) => (
+                  <CommentCard 
+                    key={comment.id} 
+                    comment={comment} 
+                    onVote={handleCommentVote}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-8 text-[var(--app-foreground-muted)]">
+                  No comments yet. Be the first to add your thoughts!
+                </div>
+              )
             )}
           </div>
         </div>
@@ -382,7 +503,13 @@ export default function DisputeDetailPage() {
 }
 
 // Comment Card Component
-function CommentCard({ comment }: { comment: any }) {
+function CommentCard({ 
+  comment, 
+  onVote 
+}: { 
+  comment: Comment; 
+  onVote: (commentId: string, action: 'upvote' | 'downvote') => void;
+}) {
   const [upvoted, setUpvoted] = useState(false);
   const [downvoted, setDownvoted] = useState(false);
 
@@ -391,6 +518,7 @@ function CommentCard({ comment }: { comment: any }) {
       setDownvoted(false);
     }
     setUpvoted(!upvoted);
+    onVote(comment.id, 'upvote');
   };
 
   const handleDownvote = () => {
@@ -398,6 +526,7 @@ function CommentCard({ comment }: { comment: any }) {
       setUpvoted(false);
     }
     setDownvoted(!downvoted);
+    onVote(comment.id, 'downvote');
   };
 
   return (
@@ -408,8 +537,8 @@ function CommentCard({ comment }: { comment: any }) {
         </div>
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-2">
-            <span className="text-sm font-medium text-[var(--app-foreground)]">{comment.author}</span>
-            <span className="text-xs text-[var(--app-foreground-muted)]">{comment.timestamp}</span>
+            <span className="text-sm font-mono font-medium text-[var(--app-foreground)]">{comment.author}</span>
+            <span className="text-xs text-[var(--app-foreground-muted)]">{formatTimestamp(comment.timestamp)}</span>
           </div>
           <p className="text-[var(--app-foreground)] mb-3 leading-relaxed">{comment.content}</p>
           
@@ -422,7 +551,7 @@ function CommentCard({ comment }: { comment: any }) {
               }`}
             >
               <Icon name="chevron-up" size="sm" />
-              <span>{upvoted ? comment.upvotes + 1 : comment.upvotes}</span>
+              <span>{comment.upvotes}</span>
             </button>
             
             <button 
@@ -432,7 +561,7 @@ function CommentCard({ comment }: { comment: any }) {
               }`}
             >
               <Icon name="chevron-down" size="sm" />
-              <span>{downvoted ? comment.downvotes + 1 : comment.downvotes}</span>
+              <span>{comment.downvotes}</span>
             </button>
           </div>
         </div>

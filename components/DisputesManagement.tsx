@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
 import { DisputeCard } from "./DisputeCard";
+import { useAccount } from "wagmi";
 
 interface Dispute {
   id: number;
@@ -25,6 +26,7 @@ interface Dispute {
 }
 
 export function DisputesManagement() {
+  const { address, isConnected } = useAccount();
   const [activeView, setActiveView] = useState<"create" | "my-disputes">("create");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -84,6 +86,11 @@ export function DisputesManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isConnected || !address) {
+      alert("Please connect your wallet to create a dispute.");
+      return;
+    }
+    
     // Here you would typically submit to an API
     console.log("Creating new dispute:", formData);
     
@@ -150,98 +157,126 @@ export function DisputesManagement() {
             <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6">
               <h3 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">Create New Dispute</h3>
               
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Dispute Topic */}
-                <div>
-                  <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                    Dispute Topic *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.topic}
-                    onChange={(e) => handleInputChange("topic", e.target.value)}
-                    placeholder="Enter the main dispute topic..."
-                    className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
-                  />
-                </div>
-
-                {/* Disputer 1 */}
-                <div className="space-y-3">
-                  <h4 className="text-lg font-medium text-[var(--app-foreground)]">First Disputer (Against)</h4>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                      Wallet Address *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.disputer1Address}
-                      onChange={(e) => handleInputChange("disputer1Address", e.target.value)}
-                      placeholder="0x..."
-                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
-                    />
+              {!isConnected ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-[var(--app-accent-light)] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Icon name="user" size="lg" className="text-[var(--app-accent)]" />
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                      Point of View *
-                    </label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={formData.disputer1PointOfView}
-                      onChange={(e) => handleInputChange("disputer1PointOfView", e.target.value)}
-                      placeholder="Explain why this disputer is against the topic..."
-                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Disputer 2 */}
-                <div className="space-y-3">
-                  <h4 className="text-lg font-medium text-[var(--app-foreground)]">Second Disputer (For)</h4>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                      Wallet Address *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.disputer2Address}
-                      onChange={(e) => handleInputChange("disputer2Address", e.target.value)}
-                      placeholder="0x..."
-                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                      Point of View *
-                    </label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={formData.disputer2PointOfView}
-                      onChange={(e) => handleInputChange("disputer2PointOfView", e.target.value)}
-                      placeholder="Explain why this disputer is for the topic..."
-                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className="pt-4">
+                  <h3 className="text-xl font-semibold mb-2 text-[var(--app-foreground)]">Wallet Required</h3>
+                  <p className="text-[var(--app-foreground-muted)] mb-6">
+                    You need to connect your wallet to create disputes and participate in the platform.
+                  </p>
                   <Button
-                    type="submit"
-                    className="w-full bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white py-3"
+                    onClick={() => {
+                      // This will trigger the wallet connection modal
+                      // The user needs to connect their wallet first
+                    }}
+                    className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white px-6 py-3"
                   >
-                    Create Dispute
+                    Connect Wallet
                   </Button>
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Wallet Info */}
+                  <div className="p-3 bg-[var(--app-accent-light)] rounded-lg">
+                    <p className="text-sm text-[var(--app-foreground)]">
+                      Creating dispute as: <span className="font-mono text-[var(--app-accent)]">{address}</span>
+                    </p>
+                  </div>
+                  
+                  {/* Dispute Topic */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                      Dispute Topic *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.topic}
+                      onChange={(e) => handleInputChange("topic", e.target.value)}
+                      placeholder="Enter the main dispute topic..."
+                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                    />
+                  </div>
+
+                  {/* Disputer 1 */}
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-medium text-[var(--app-foreground)]">First Disputer (Against)</h4>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                        Wallet Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.disputer1Address}
+                        onChange={(e) => handleInputChange("disputer1Address", e.target.value)}
+                        placeholder="0x..."
+                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                        Point of View *
+                      </label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={formData.disputer1PointOfView}
+                        onChange={(e) => handleInputChange("disputer1PointOfView", e.target.value)}
+                        placeholder="Explain why this disputer is against the topic..."
+                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Disputer 2 */}
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-medium text-[var(--app-foreground)]">Second Disputer (For)</h4>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                        Wallet Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.disputer2Address}
+                        onChange={(e) => handleInputChange("disputer2Address", e.target.value)}
+                        placeholder="0x..."
+                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                        Point of View *
+                      </label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={formData.disputer2PointOfView}
+                        onChange={(e) => handleInputChange("disputer2PointOfView", e.target.value)}
+                        placeholder="Explain why this disputer is for the topic..."
+                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-4">
+                    <Button
+                      type="submit"
+                      className="w-full bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white py-3"
+                    >
+                      Create Dispute
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           ) : (
             <div className="text-center py-12">
