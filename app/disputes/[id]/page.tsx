@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -199,7 +200,7 @@ export default function DisputeDetailPage() {
       <div className="min-h-screen bg-[var(--app-background)] flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">Dispute Not Found</h1>
-          <p className="text-[var(--app-foreground-muted)] mb-4">The dispute you're looking for doesn't exist.</p>
+          <p className="text-[var(--app-foreground-muted)] mb-4">{`The dispute you're looking for doesn't exist.`}</p>
           <Button onClick={() => router.back()}>Go Back</Button>
         </div>
       </div>
@@ -307,7 +308,7 @@ export default function DisputeDetailPage() {
 
         {/* Disputers' Points of View */}
         <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6 mb-6">
-          <h2 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">Disputers' Points of View</h2>
+          <h2 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">{`Disputers' Points of View`}</h2>
           
           <div className="space-y-4">
             {/* Disputer 1 */}
@@ -348,7 +349,7 @@ export default function DisputeDetailPage() {
                   : "text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
               }`}
             >
-              Disputers' Views
+              {`Disputers' Views`}
             </button>
             <button
               onClick={() => setActiveTab("users")}

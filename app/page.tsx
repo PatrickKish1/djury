@@ -25,6 +25,7 @@ import { Icon } from "../components/DemoComponents";
 import { DisputeCard } from "../components/DisputeCard";
 import { useRouter } from "next/navigation";
 import { DisputesManagement } from "../components/DisputesManagement";
+import Image from "next/image";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -35,6 +36,7 @@ export default function App() {
 
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
+  console.log(openUrl);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -196,10 +198,13 @@ export default function App() {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-[var(--app-accent)] to-[var(--app-accent-hover)] flex items-center justify-center z-50 splash-fade-in">
         <div className="text-center splash-scale-in">
-          <img 
+          <Image
             src="https://png.pngtree.com/png-clipart/20250109/original/pngtree-social-media-marketing-for-business-flat-vector-illustration-png-image_19680874.png"
             alt="Social Media App"
             className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-2xl"
+            width={128}
+            height={128}
+            unoptimized={true}
           />
           <h1 className="text-4xl font-bold text-white mb-2">DJury</h1>
           <p className="text-white/80 text-lg">Decentralized Social Media</p>

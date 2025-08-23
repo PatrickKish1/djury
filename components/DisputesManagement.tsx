@@ -283,7 +283,7 @@ export function DisputesManagement() {
               <Icon name="alert-circle" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
               <h3 className="text-xl font-semibold mb-2 text-[var(--app-foreground)]">No Disputes Created Yet</h3>
               <p className="text-[var(--app-foreground-muted)] mb-6">
-                You haven't created any disputes yet. Start by creating your first dispute!
+                {`You haven't created any disputes yet. Start by creating your first dispute!`}
               </p>
               <Button
                 onClick={() => setActiveView("create")}
