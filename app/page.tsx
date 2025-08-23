@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import {
@@ -21,6 +22,7 @@ import {
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "../components/DemoComponents";
 import { Icon } from "../components/DemoComponents";
+import Image from "next/image";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -30,6 +32,7 @@ export default function App() {
 
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
+  console.log(openUrl);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -123,9 +126,11 @@ export default function App() {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-[var(--app-accent)] to-[var(--app-accent-hover)] flex items-center justify-center z-50 splash-fade-in">
         <div className="text-center splash-scale-in">
-          <img 
+          <Image
             src="https://png.pngtree.com/png-clipart/20250109/original/pngtree-social-media-marketing-for-business-flat-vector-illustration-png-image_19680874.png"
             alt="Social Media App"
+            width={128}
+            height={128}
             className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-2xl"
           />
           <h1 className="text-4xl font-bold text-white mb-2">DJury</h1>
@@ -233,10 +238,12 @@ function PostCard({ post }: { post: any }) {
   return (
     <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4 post-card-hover">
       <div className="flex space-x-3">
-        <img 
+        <Image 
           src={post.avatar} 
           alt={post.author}
           className="w-10 h-10 rounded-full"
+          width={40}
+          height={40}
         />
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
