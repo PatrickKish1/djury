@@ -22,17 +22,19 @@ import {
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "../components/DemoComponents";
 import { Icon } from "../components/DemoComponents";
-import Image from "next/image";
+import { DisputeCard } from "../components/DisputeCard";
+import { useRouter } from "next/navigation";
+import { DisputesManagement } from "../components/DisputesManagement";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
   const [showSplash, setShowSplash] = useState(true);
+  const router = useRouter();
 
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
-  console.log(openUrl);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -41,12 +43,22 @@ export default function App() {
   }, [setFrameReady, isFrameReady]);
 
   useEffect(() => {
-    // Show splash screen for 2 seconds
-    const timer = setTimeout(() => {
+    // Check if user has seen splash screen before
+    const hasSeenSplash = localStorage.getItem('hasSeenSplash');
+    
+    if (hasSeenSplash) {
+      // User has seen splash before, skip it
       setShowSplash(false);
-    }, 2000);
+    } else {
+      // First time user, show splash for 2 seconds
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+        // Mark that user has seen splash
+        localStorage.setItem('hasSeenSplash', 'true');
+      }, 2000);
 
-    return () => clearTimeout(timer);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const handleAddFrame = useCallback(async () => {
@@ -81,56 +93,112 @@ export default function App() {
     return null;
   }, [context, frameAdded, handleAddFrame]);
 
-  // Mock social media posts data
-  const posts = [
+  // Mock disputes data
+  const disputes = [
     {
       id: 1,
-      author: "Alice Web3",
-      handle: "@alice.web3",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alice",
-      content: "Just deployed my first smart contract on Base! 🚀 The future of decentralized social media is here.",
+      topic: "Ghana jollof is the best",
+      disputer1: {
+        address: "0x1234...5678",
+        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious."
+      },
+      disputer2: {
+        address: "0x8765...4321",
+        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious."
+      },
       timestamp: "2h ago",
-      likes: 24,
-      reposts: 8,
-      comments: 12,
+      upvotes: 24,
+      downvotes: 8,
+      reposts: 12,
+      comments: 18,
       bookmarked: false
     },
     {
       id: 2,
-      author: "Bob Builder",
-      handle: "@bob.builder",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob",
-      content: "Building the next generation of social apps with MiniKit. The developer experience is incredible! 💻✨",
-      timestamp: "4h ago",
-      likes: 18,
-      reposts: 5,
-      comments: 7,
-      bookmarked: true
+      topic: "MoMo charges is a way of supporting telcos and government",
+      disputer1: {
+        address: "0x1234...5678",
+        pointOfView: "MoMo charges is a way of supporting telcos and government because it is a way of supporting the economy and the government. It is not just charges but a way of supporting the economy and the government."
+      },
+      disputer2: {
+        address: "0x8765...4321",
+        pointOfView: "MoMo charges are not reasonable and should be reduced. They should be removed completely."
+      },
+      timestamp: "2h ago",
+      upvotes: 24,
+      downvotes: 8,
+      reposts: 12,
+      comments: 18,
+      bookmarked: false
     },
     {
       id: 3,
-      author: "Crypto Cathy",
-      handle: "@crypto.cathy",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Cathy",
-      content: "Farcaster frames are revolutionizing how we think about social media. Web3 native from the ground up! 🔥",
+      topic: "One Piece is a really great anime",
+      disputer1: {
+        address: "0x1234...5678",
+        pointOfView: "One Piece has terrible pacing and filler episodes that make it unwatchable. The story drags on unnecessarily and the animation quality is inconsistent."
+      },
+      disputer2: {
+        address: "0x8765...4321",
+        pointOfView: "One Piece is a masterpiece with deep storytelling, complex characters, and meaningful themes. The pacing allows for proper character development."
+      },
+      timestamp: "2h ago",
+      upvotes: 24,
+      downvotes: 8,
+      reposts: 12,
+      comments: 18,
+      bookmarked: false
+    },
+    {
+      id: 4,
+      topic: "React is better than Vue for enterprise applications",
+      disputer1: {
+        address: "0x1111...2222",
+        pointOfView: "React's ecosystem is more mature, has better TypeScript support, and larger community. It's the industry standard for enterprise."
+      },
+      disputer2: {
+        address: "0x3333...4444",
+        pointOfView: "Vue is more intuitive, has better performance, and cleaner syntax. It's easier to learn and maintain for teams."
+      },
+      timestamp: "4h ago",
+      upvotes: 18,
+      downvotes: 5,
+      reposts: 7,
+      comments: 12,
+      bookmarked: true
+    },
+    {
+      id: 5,
+      topic: "Coffee is superior to tea",
+      disputer1: {
+        address: "0x5555...6666",
+        pointOfView: "Coffee provides better caffeine boost, has richer flavor profiles, and is more versatile for different brewing methods."
+      },
+      disputer2: {
+        address: "0x7777...8888",
+        pointOfView: "Tea is healthier, has calming properties, and offers more variety in flavors and health benefits."
+      },
       timestamp: "6h ago",
-      likes: 31,
-      reposts: 15,
-      comments: 23,
+      upvotes: 31,
+      downvotes: 15,
+      reposts: 23,
+      comments: 28,
       bookmarked: false
     }
   ];
+
+  const handleDisputeClick = (disputeId: number) => {
+    router.push(`/disputes/${disputeId}`);
+  };
 
   // Splash Screen
   if (showSplash) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-[var(--app-accent)] to-[var(--app-accent-hover)] flex items-center justify-center z-50 splash-fade-in">
         <div className="text-center splash-scale-in">
-          <Image
+          <img 
             src="https://png.pngtree.com/png-clipart/20250109/original/pngtree-social-media-marketing-for-business-flat-vector-illustration-png-image_19680874.png"
             alt="Social Media App"
-            width={128}
-            height={128}
             className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-2xl"
           />
           <h1 className="text-4xl font-bold text-white mb-2">DJury</h1>
@@ -171,8 +239,12 @@ export default function App() {
         <main className="flex-1 pb-20">
           {activeTab === "home" && (
             <div className="space-y-4 animate-fade-in">
-              {posts.map((post) => (
-                <PostCard key={post.id} post={post} />
+              {disputes.map((dispute) => (
+                <DisputeCard 
+                  key={dispute.id} 
+                  dispute={dispute} 
+                  onClick={() => handleDisputeClick(dispute.id)}
+                />
               ))}
             </div>
           )}
@@ -180,14 +252,12 @@ export default function App() {
             <div className="text-center py-8 animate-fade-in">
               <Icon name="search" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
               <h2 className="text-xl font-semibold mb-2">Search</h2>
-              <p className="text-[var(--app-foreground-muted)]">Search for posts, users, and topics</p>
+              <p className="text-[var(--app-foreground-muted)]">Search for disputes, users, and topics</p>
             </div>
           )}
           {activeTab === "disputes" && (
-            <div className="text-center py-8 animate-fade-in">
-              <Icon name="alert-circle" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
-              <h2 className="text-xl font-semibold mb-2">Disputes</h2>
-              <p className="text-[var(--app-foreground-muted)]">Manage content disputes and moderation</p>
+            <div className="space-y-4 animate-fade-in">
+              <DisputesManagement />
             </div>
           )}
           {activeTab === "profile" && (
@@ -223,70 +293,6 @@ export default function App() {
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Post Card Component
-function PostCard({ post }: { post: any }) {
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(post.bookmarked);
-
-  return (
-    <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4 post-card-hover">
-      <div className="flex space-x-3">
-        <Image 
-          src={post.avatar} 
-          alt={post.author}
-          className="w-10 h-10 rounded-full"
-          width={40}
-          height={40}
-          unoptimized={true}
-        />
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-1">
-            <span className="font-semibold text-[var(--app-foreground)]">{post.author}</span>
-            <span className="text-[var(--app-foreground-muted)] text-sm">{post.handle}</span>
-            <span className="text-[var(--app-foreground-muted)] text-sm">•</span>
-            <span className="text-[var(--app-foreground-muted)] text-sm">{post.timestamp}</span>
-          </div>
-          <p className="text-[var(--app-foreground)] mb-3 leading-relaxed">{post.content}</p>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <button 
-                onClick={() => setLiked(!liked)}
-                className={`flex items-center space-x-2 text-sm transition-colors ${
-                  liked ? "text-red-500" : "text-[var(--app-foreground-muted)] hover:text-red-500"
-                }`}
-              >
-                <Icon name="heart" size="sm" />
-                <span>{liked ? post.likes + 1 : post.likes}</span>
-              </button>
-              
-              <button className="flex items-center space-x-2 text-sm text-[var(--app-foreground-muted)] hover:text-[var(--app-accent)] transition-colors">
-                <Icon name="repeat" size="sm" />
-                <span>{post.reposts}</span>
-              </button>
-              
-              <button className="flex items-center space-x-2 text-sm text-[var(--app-foreground-muted)] hover:text-[var(--app-accent)] transition-colors">
-                <Icon name="message-circle" size="sm" />
-                <span>{post.comments}</span>
-              </button>
-            </div>
-            
-            <button 
-              onClick={() => setBookmarked(!bookmarked)}
-              className={`transition-colors ${
-                bookmarked ? "text-[var(--app-accent)]" : "text-[var(--app-foreground-muted)] hover:text-[var(--app-accent)]"
-              }`}
-            >
-              <Icon name="bookmark" size="sm" />
-            </button>
           </div>
         </div>
       </div>
