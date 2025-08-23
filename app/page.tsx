@@ -244,6 +244,7 @@ function PostCard({ post }: { post: any }) {
           className="w-10 h-10 rounded-full"
           width={40}
           height={40}
+          unoptimized={true}
         />
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
