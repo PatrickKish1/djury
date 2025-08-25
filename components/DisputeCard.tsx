@@ -6,14 +6,25 @@ import { Icon } from "./DemoComponents";
 interface Dispute {
   id: number;
   topic: string;
-  disputer1: {
+  type: 'general' | 'opponent';
+  creator: string;
+  status: 'draft' | 'active' | 'completed';
+  inviteUrl?: string;
+  disputer1?: {
     address: string;
     pointOfView: string;
+    status: 'pending' | 'accepted' | 'declined';
   };
-  disputer2: {
+  disputer2?: {
     address: string;
     pointOfView: string;
+    status: 'pending' | 'accepted' | 'declined';
   };
+  opponents?: {
+    address: string;
+    pointOfView: string;
+    status: 'pending' | 'accepted' | 'declined';
+  }[];
   timestamp: string;
   upvotes: number;
   downvotes: number;
@@ -32,132 +43,181 @@ export function DisputeCard({ dispute, onClick }: DisputeCardProps) {
   const [downvoted, setDownvoted] = useState(false);
   const [bookmarked, setBookmarked] = useState(dispute.bookmarked);
 
-  const handleUpvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleUpvote = () => {
     if (downvoted) {
       setDownvoted(false);
     }
     setUpvoted(!upvoted);
   };
 
-  const handleDownvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownvote = () => {
     if (upvoted) {
       setUpvoted(false);
     }
     setDownvoted(!downvoted);
   };
 
-  const handleBookmark = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleBookmark = () => {
     setBookmarked(!bookmarked);
   };
 
-  const handleRepost = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Repost functionality would go here
+  // Get disputer previews based on dispute type
+  const getDisputerPreviews = () => {
+    if (dispute.type === 'opponent' && dispute.disputer1 && dispute.disputer2) {
+      return [
+        {
+          address: dispute.disputer1.address,
+          pointOfView: dispute.disputer1.pointOfView,
+          status: dispute.disputer1.status,
+          type: 'against' as const
+        },
+        {
+          address: dispute.disputer2.address,
+          pointOfView: dispute.disputer2.pointOfView,
+          status: dispute.disputer2.status,
+          type: 'for' as const
+        }
+      ];
+    } else if (dispute.type === 'general') {
+      return [
+        {
+          address: dispute.creator,
+          pointOfView: "General community dispute - open to all",
+          status: 'active' as const,
+          type: 'general' as const
+        }
+      ];
+    }
+    return [];
   };
 
-  const handleComment = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Comment functionality would go here
-  };
+  const disputerPreviews = getDisputerPreviews();
 
   return (
     <div 
-      className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4 post-card-hover cursor-pointer"
       onClick={onClick}
+      className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] post-card-hover"
     >
+      {/* Dispute Type Badge */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            dispute.type === 'opponent' 
+              ? 'bg-blue-100 text-blue-800' 
+              : 'bg-green-100 text-green-800'
+          }`}>
+            {dispute.type === 'opponent' ? 'Opponent Dispute' : 'General Dispute'}
+          </span>
+          {dispute.status === 'draft' && (
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+              Draft
+            </span>
+          )}
+        </div>
+        <div className="text-sm text-[var(--app-foreground-muted)]">
+          {dispute.timestamp}
+        </div>
+      </div>
+
       {/* Dispute Topic */}
-      <div className="mb-3">
-        <h3 className="text-lg font-semibold text-[var(--app-foreground)] leading-tight">
-          {dispute.topic}
-        </h3>
-      </div>
-
+      <h3 className="text-xl font-bold text-[var(--app-foreground)] mb-4 leading-tight">
+        {dispute.topic}
+      </h3>
+      
       {/* Disputers Preview */}
-      <div className="space-y-3 mb-4">
-        <div className="flex items-start space-x-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-          <div className="w-3 h-3 rounded-full bg-red-500 mt-1 flex-shrink-0"></div>
-          <div className="flex-1">
-            <p className="text-sm text-[var(--app-foreground-muted)] mb-1">
-              <span className="font-medium text-[var(--app-foreground)]">{dispute.disputer1.address}</span>
-              <span className="ml-2 text-xs bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 px-2 py-1 rounded-full">Against</span>
-            </p>
-            <p className="text-sm text-[var(--app-foreground-muted)] line-clamp-2">
-              {dispute.disputer1.pointOfView}
-            </p>
-          </div>
+      {disputerPreviews.length > 0 && (
+        <div className="space-y-3 mb-4">
+          {disputerPreviews.map((disputer, index) => (
+            <div 
+              key={index}
+              className={`p-3 rounded-lg border-l-4 ${
+                disputer.type === 'against' 
+                  ? 'border-red-500 bg-red-50' 
+                  : disputer.type === 'for'
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-500 bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-[var(--app-foreground)]">
+                  {disputer.type === 'against' ? 'Against' : disputer.type === 'for' ? 'For' : 'Creator'}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  disputer.status === 'accepted' 
+                    ? 'bg-green-100 text-green-800' 
+                    : disputer.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {disputer.status}
+                </span>
+              </div>
+              <p className="text-sm text-[var(--app-foreground)] font-mono mb-1">
+                {disputer.address}
+              </p>
+              <p className="text-sm text-[var(--app-foreground-muted)] line-clamp-2">
+                {disputer.pointOfView}
+              </p>
+            </div>
+          ))}
         </div>
-        
-        <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="w-3 h-3 rounded-full bg-blue-500 mt-1 flex-shrink-0"></div>
-          <div className="flex-1">
-            <p className="text-sm text-[var(--app-foreground-muted)] mb-1">
-              <span className="font-medium text-[var(--app-foreground)]">{dispute.disputer2.address}</span>
-              <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">For</span>
-            </p>
-            <p className="text-sm text-[var(--app-foreground-muted)] line-clamp-2">
-              {dispute.disputer2.pointOfView}
-            </p>
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* Timestamp */}
-      <div className="text-xs text-[var(--app-foreground-muted)] mb-3">
-        {dispute.timestamp}
-      </div>
-
-      {/* Action Buttons */}
+      {/* Action Stats */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-6">
-          {/* Upvote Button */}
-          <button 
-            onClick={handleUpvote}
-            className={`flex items-center space-x-2 text-sm transition-colors ${
-              upvoted ? "text-green-500" : "text-[var(--app-foreground-muted)] hover:text-green-500"
-            }`}
-          >
-            <Icon name="chevron-up" size="sm" />
-            <span>{upvoted ? dispute.upvotes + 1 : dispute.upvotes}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpvote();
+              }}
+              className={`p-2 rounded-lg transition-colors ${
+                upvoted ? "bg-green-100 text-green-600" : "hover:bg-[var(--app-accent-light)]"
+              }`}
+            >
+              <Icon name="chevron-up" size="sm" />
+            </button>
+            <span className="text-sm font-medium text-[var(--app-foreground)]">
+              {upvoted ? dispute.upvotes + 1 : dispute.upvotes}
+            </span>
+          </div>
           
-          {/* Downvote Button */}
-          <button 
-            onClick={handleDownvote}
-            className={`flex items-center space-x-2 text-sm transition-colors ${
-              downvoted ? "text-red-500" : "text-[var(--app-foreground-muted)] hover:text-red-500"
-            }`}
-          >
-            <Icon name="chevron-down" size="sm" />
-            <span>{downvoted ? dispute.downvotes + 1 : dispute.downvotes}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownvote();
+              }}
+              className={`p-2 rounded-lg transition-colors ${
+                downvoted ? "bg-red-100 text-red-600" : "hover:bg-[var(--app-accent-light)]"
+              }`}
+            >
+              <Icon name="chevron-down" size="sm" />
+            </button>
+            <span className="text-sm font-medium text-[var(--app-foreground)]">
+              {downvoted ? dispute.downvotes + 1 : dispute.downvotes}
+            </span>
+          </div>
           
-          {/* Repost Button */}
-          <button 
-            onClick={handleRepost}
-            className="flex items-center space-x-2 text-sm text-[var(--app-foreground-muted)] hover:text-[var(--app-accent)] transition-colors"
-          >
+          <div className="flex items-center space-x-2 text-sm text-[var(--app-foreground-muted)]">
             <Icon name="repeat" size="sm" />
             <span>{dispute.reposts}</span>
-          </button>
+          </div>
           
-          {/* Comment Button */}
-          <button 
-            onClick={handleComment}
-            className="flex items-center space-x-2 text-sm text-[var(--app-foreground-muted)] hover:text-[var(--app-accent)] transition-colors"
-          >
+          <div className="flex items-center space-x-2 text-sm text-[var(--app-foreground-muted)]">
             <Icon name="message-circle" size="sm" />
             <span>{dispute.comments}</span>
-          </button>
+          </div>
         </div>
         
-        {/* Bookmark Button */}
         <button 
-          onClick={handleBookmark}
-          className={`transition-colors ${
-            bookmarked ? "text-[var(--app-accent)]" : "text-[var(--app-foreground-muted)] hover:text-[var(--app-accent)]"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBookmark();
+          }}
+          className={`p-2 rounded-lg transition-colors ${
+            bookmarked ? "bg-[var(--app-accent-light)] text-[var(--app-accent)]" : "hover:bg-[var(--app-accent-light)]"
           }`}
         >
           <Icon name="bookmark" size="sm" />

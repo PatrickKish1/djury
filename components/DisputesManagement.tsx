@@ -9,14 +9,25 @@ import { useAccount } from "wagmi";
 interface Dispute {
   id: number;
   topic: string;
-  disputer1: {
+  type: 'general' | 'opponent';
+  creator: string;
+  status: 'draft' | 'active' | 'completed';
+  inviteUrl?: string;
+  disputer1?: {
     address: string;
     pointOfView: string;
+    status: 'pending' | 'accepted' | 'declined';
   };
-  disputer2: {
+  disputer2?: {
     address: string;
     pointOfView: string;
+    status: 'pending' | 'accepted' | 'declined';
   };
+  opponents?: {
+    address: string;
+    pointOfView: string;
+    status: 'pending' | 'accepted' | 'declined';
+  }[];
   timestamp: string;
   upvotes: number;
   downvotes: number;
@@ -26,29 +37,45 @@ interface Dispute {
 }
 
 export function DisputesManagement() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isConnecting } = useAccount();
   const [activeView, setActiveView] = useState<"create" | "my-disputes">("create");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [disputeType, setDisputeType] = useState<'general' | 'opponent'>('general');
   const [formData, setFormData] = useState({
     topic: "",
-    disputer1Address: "",
-    disputer1PointOfView: "",
-    disputer2Address: "",
-    disputer2PointOfView: ""
+    type: 'general' as 'general' | 'opponent',
+    opponentAddresses: [""],
+    opponentEmails: [""]
   });
+
+  // Show loading state while connecting
+  if (isConnecting) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--app-accent)] mx-auto mb-4"></div>
+        <p className="text-[var(--app-foreground-muted)]">Connecting wallet...</p>
+      </div>
+    );
+  }
 
   // Mock user's created disputes
   const userDisputes: Dispute[] = [
     {
       id: 101,
       topic: "Ghana jollof is the best",
+      type: 'opponent',
+      creator: "0x1234...5678",
+      status: 'active',
+      inviteUrl: "https://djury.app/disputes/101/invite/abc123",
       disputer1: {
         address: "0x1234...5678",
-        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious."
+        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
+        status: 'accepted'
       },
       disputer2: {
         address: "0x8765...4321",
-        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious."
+        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
+        status: 'accepted'
       },
       timestamp: "1h ago",
       upvotes: 15,
@@ -60,14 +87,9 @@ export function DisputesManagement() {
     {
       id: 102,
       topic: "MoMo charges are reasonable",
-      disputer1: {
-        address: "0x1234...5678",
-        pointOfView: "MoMo charges are reasonable and help support the telco infrastructure."
-      },
-      disputer2: {
-        address: "0x8765...4321",
-        pointOfView: "MoMo charges are too high and should be reduced significantly."
-      },
+      type: 'general',
+      creator: "0x1234...5678",
+      status: 'active',
       timestamp: "3h ago",
       upvotes: 8,
       downvotes: 12,
@@ -77,11 +99,55 @@ export function DisputesManagement() {
     }
   ];
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const addOpponent = () => {
+    setFormData(prev => ({
+      ...prev,
+      opponentAddresses: [...prev.opponentAddresses, ""],
+      opponentEmails: [...prev.opponentEmails, ""]
+    }));
+  };
+
+  const removeOpponent = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      opponentAddresses: prev.opponentAddresses.filter((_, i) => i !== index),
+      opponentEmails: prev.opponentEmails.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateOpponent = (index: number, field: 'address' | 'email', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field === 'address' ? 'opponentAddresses' : 'opponentEmails']: prev[field === 'address' ? 'opponentAddresses' : 'opponentEmails'].map((item, i) => 
+        i === index ? value : item
+      )
+    }));
+  };
+
+  const generateInviteUrl = (disputeId: number) => {
+    return `https://djury.app/disputes/${disputeId}/invite/${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const copyInviteLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Invite link copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      alert('Failed to copy link. Please copy manually.');
+    }
+  };
+
+  const handleDisputeClick = (disputeId: number) => {
+    // Navigate to dispute detail page
+    window.location.href = `/disputes/${disputeId}`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -91,26 +157,40 @@ export function DisputesManagement() {
       return;
     }
     
+    // Validate opponent addresses if opponent type
+    if (disputeType === 'opponent') {
+      const validAddresses = formData.opponentAddresses.filter(addr => addr.trim() !== "");
+      if (validAddresses.length === 0) {
+        alert("Please add at least one opponent address for opponent disputes.");
+        return;
+      }
+    }
+    
     // Here you would typically submit to an API
-    console.log("Creating new dispute:", formData);
+    const newDispute = {
+      ...formData,
+      creator: address,
+      status: 'draft',
+      inviteUrl: disputeType === 'opponent' ? generateInviteUrl(Date.now()) : undefined
+    };
+    
+    console.log("Creating new dispute:", newDispute);
     
     // Reset form and hide it
     setFormData({
       topic: "",
-      disputer1Address: "",
-      disputer1PointOfView: "",
-      disputer2Address: "",
-      disputer2PointOfView: ""
+      type: 'general',
+      opponentAddresses: [""],
+      opponentEmails: [""]
     });
     setShowCreateForm(false);
     
-    // Show success message or redirect
-    alert("Dispute created successfully!");
-  };
-
-  const handleDisputeClick = (disputeId: number) => {
-    // Navigate to dispute detail page
-    window.location.href = `/disputes/${disputeId}`;
+    // Show success message
+    if (disputeType === 'opponent') {
+      alert("Opponent dispute created! Share the invite link with your opponents.");
+    } else {
+      alert("General dispute created successfully!");
+    }
   };
 
   return (
@@ -118,12 +198,6 @@ export function DisputesManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-[var(--app-foreground)]">Disputes Management</h2>
-        <Button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white"
-        >
-          {showCreateForm ? "Cancel" : "Create New Dispute"}
-        </Button>
       </div>
 
       {/* View Toggle */}
@@ -177,12 +251,56 @@ export function DisputesManagement() {
                   </Button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Wallet Info */}
                   <div className="p-3 bg-[var(--app-accent-light)] rounded-lg">
                     <p className="text-sm text-[var(--app-foreground)]">
                       Creating dispute as: <span className="font-mono text-[var(--app-accent)]">{address}</span>
                     </p>
+                  </div>
+                  
+                  {/* Dispute Type Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-3">
+                      Dispute Type *
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setDisputeType('general')}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          disputeType === 'general'
+                            ? 'border-[var(--app-accent)] bg-[var(--app-accent-light)]'
+                            : 'border-[var(--app-card-border)] hover:border-[var(--app-accent)]'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <Icon name="users" size="lg" className="mx-auto mb-2 text-[var(--app-accent)]" />
+                          <h4 className="font-medium text-[var(--app-foreground)]">General Dispute</h4>
+                          <p className="text-xs text-[var(--app-foreground-muted)] mt-1">
+                            Open to entire community
+                          </p>
+                        </div>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setDisputeType('opponent')}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          disputeType === 'opponent'
+                            ? 'border-[var(--app-accent)] bg-[var(--app-accent-light)]'
+                            : 'border-[var(--app-card-border)] hover:border-[var(--app-accent)]'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <Icon name="user-check" size="lg" className="mx-auto mb-2 text-[var(--app-accent)]" />
+                          <h4 className="font-medium text-[var(--app-foreground)]">Opponent Dispute</h4>
+                          <p className="text-xs text-[var(--app-foreground-muted)] mt-1">
+                            Invite specific opponents
+                          </p>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Dispute Topic */}
@@ -200,71 +318,59 @@ export function DisputesManagement() {
                     />
                   </div>
 
-                  {/* Disputer 1 */}
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-medium text-[var(--app-foreground)]">First Disputer (Against)</h4>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                        Wallet Address *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.disputer1Address}
-                        onChange={(e) => handleInputChange("disputer1Address", e.target.value)}
-                        placeholder="0x..."
-                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
-                      />
+                  {/* Opponent Management (only for opponent disputes) */}
+                  {disputeType === 'opponent' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-lg font-medium text-[var(--app-foreground)]">Invite Opponents</h4>
+                        <Button
+                          type="button"
+                          onClick={addOpponent}
+                          className="bg-[var(--app-gray)] hover:bg-[var(--app-gray-dark)] text-[var(--app-foreground)]"
+                        >
+                          <Icon name="plus" size="sm" className="mr-2" />
+                          Add Opponent
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {formData.opponentAddresses.map((address, index) => (
+                          <div key={index} className="flex items-center space-x-3 p-3 border border-[var(--app-card-border)] rounded-lg">
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-[var(--app-foreground)] mb-1">
+                                Opponent {index + 1} Wallet Address *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={address}
+                                onChange={(e) => updateOpponent(index, 'address', e.target.value)}
+                                placeholder="0x..."
+                                className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                              />
+                            </div>
+                            
+                            {formData.opponentAddresses.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeOpponent(index)}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <Icon name="x" size="sm" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <Icon name="info" size="sm" className="inline mr-2" />
+                          Opponents will receive an invite link to join the dispute and add their points of view.
+                        </p>
+                      </div>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                        Point of View *
-                      </label>
-                      <textarea
-                        required
-                        rows={3}
-                        value={formData.disputer1PointOfView}
-                        onChange={(e) => handleInputChange("disputer1PointOfView", e.target.value)}
-                        placeholder="Explain why this disputer is against the topic..."
-                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Disputer 2 */}
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-medium text-[var(--app-foreground)]">Second Disputer (For)</h4>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                        Wallet Address *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.disputer2Address}
-                        onChange={(e) => handleInputChange("disputer2Address", e.target.value)}
-                        placeholder="0x..."
-                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
-                        Point of View *
-                      </label>
-                      <textarea
-                        required
-                        rows={3}
-                        value={formData.disputer2PointOfView}
-                        onChange={(e) => handleInputChange("disputer2PointOfView", e.target.value)}
-                        placeholder="Explain why this disputer is for the topic..."
-                        className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
-                      />
-                    </div>
-                  </div>
+                  )}
 
                   {/* Submit Button */}
                   <div className="pt-4">
@@ -272,7 +378,7 @@ export function DisputesManagement() {
                       type="submit"
                       className="w-full bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white py-3"
                     >
-                      Create Dispute
+                      Create {disputeType === 'opponent' ? 'Opponent' : 'General'} Dispute
                     </Button>
                   </div>
                 </form>
@@ -283,7 +389,7 @@ export function DisputesManagement() {
               <Icon name="plus" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
               <h3 className="text-xl font-semibold mb-2 text-[var(--app-foreground)]">Ready to Create a Dispute?</h3>
               <p className="text-[var(--app-foreground-muted)] mb-6">
-                Start a new debate by creating a dispute between two parties with opposing views.
+                Start a new debate by creating either a general community dispute or an opponent-specific dispute.
               </p>
               <Button
                 onClick={() => setShowCreateForm(true)}
@@ -305,11 +411,37 @@ export function DisputesManagement() {
               </h3>
               <div className="space-y-4">
                 {userDisputes.map((dispute) => (
-                  <DisputeCard 
-                    key={dispute.id} 
-                    dispute={dispute} 
-                    onClick={() => handleDisputeClick(dispute.id)}
-                  />
+                  <div key={dispute.id} className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4">
+                    <DisputeCard 
+                      dispute={dispute} 
+                      onClick={() => handleDisputeClick(dispute.id)}
+                    />
+                    
+                    {/* Invite Link for Opponent Disputes */}
+                    {dispute.type === 'opponent' && dispute.inviteUrl && (
+                      <div className="mt-4 p-3 bg-[var(--app-accent-light)] rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-[var(--app-foreground)] mb-1">Invite Link</p>
+                            <p className="text-xs text-[var(--app-foreground-muted)]">
+                              Share this link with your opponents to invite them to the dispute
+                            </p>
+                          </div>
+                          <Button
+                            onClick={() => copyInviteLink(dispute.inviteUrl!)}
+                            className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white text-sm px-3 py-1"
+                          >
+                            Copy Link
+                          </Button>
+                        </div>
+                        <div className="mt-2 p-2 bg-[var(--app-background)] rounded border border-[var(--app-card-border)]">
+                          <p className="text-xs font-mono text-[var(--app-foreground)] break-all">
+                            {dispute.inviteUrl}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -318,7 +450,7 @@ export function DisputesManagement() {
               <Icon name="alert-circle" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
               <h3 className="text-xl font-semibold mb-2 text-[var(--app-foreground)]">No Disputes Created Yet</h3>
               <p className="text-[var(--app-foreground-muted)] mb-6">
-                {`You haven't created any disputes yet. Start by creating your first dispute!`}
+                You haven't created any disputes yet. Start by creating your first dispute!
               </p>
               <Button
                 onClick={() => setActiveView("create")}

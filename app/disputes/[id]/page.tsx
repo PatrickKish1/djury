@@ -6,6 +6,7 @@ import { Icon } from "../../../components/DemoComponents";
 import { Button } from "../../../components/DemoComponents";
 import { fetchComments, addComment, updateCommentVote, type Comment, type CommentsData, formatTimestamp } from "../../../lib/comments";
 import { useAccount } from "wagmi";
+import { GlobalTabs } from "../../../components/GlobalTabs";
 
 // Mock dispute data - in a real app, this would come from an API
 const mockDisputes = {
@@ -498,6 +499,9 @@ export default function DisputeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Global Tabs */}
+      <GlobalTabs />
     </div>
   );
 }

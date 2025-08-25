@@ -25,18 +25,20 @@ import { Icon } from "../components/DemoComponents";
 import { DisputeCard } from "../components/DisputeCard";
 import { useRouter } from "next/navigation";
 import { DisputesManagement } from "../components/DisputesManagement";
+import { SearchComponent } from "../components/SearchComponent";
+import { ProfileComponent } from "../components/ProfileComponent";
+import { GlobalTabs } from "../components/GlobalTabs";
 import Image from "next/image";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [activeTab, setActiveTab] = useState("home");
   const [showSplash, setShowSplash] = useState(true);
+  const [activeView, setActiveView] = useState<"home" | "disputes" | "search" | "profile">("home");
   const router = useRouter();
 
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
-  console.log(openUrl);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -95,18 +97,23 @@ export default function App() {
     return null;
   }, [context, frameAdded, handleAddFrame]);
 
-  // Mock disputes data
+  // Mock disputes data - in a real app, this would come from an API
   const disputes = [
     {
       id: 1,
       topic: "Ghana jollof is the best",
+      type: 'opponent' as const,
+      creator: "0x1234...5678",
+      status: 'active' as const,
       disputer1: {
         address: "0x1234...5678",
-        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious."
+        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
+        status: 'accepted' as const
       },
       disputer2: {
         address: "0x8765...4321",
-        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious."
+        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
+        status: 'accepted' as const
       },
       timestamp: "2h ago",
       upvotes: 24,
@@ -118,14 +125,9 @@ export default function App() {
     {
       id: 2,
       topic: "MoMo charges is a way of supporting telcos and government",
-      disputer1: {
-        address: "0x1234...5678",
-        pointOfView: "MoMo charges is a way of supporting telcos and government because it is a way of supporting the economy and the government. It is not just charges but a way of supporting the economy and the government."
-      },
-      disputer2: {
-        address: "0x8765...4321",
-        pointOfView: "MoMo charges are not reasonable and should be reduced. They should be removed completely."
-      },
+      type: 'general' as const,
+      creator: "0x1234...5678",
+      status: 'active' as const,
       timestamp: "2h ago",
       upvotes: 24,
       downvotes: 8,
@@ -136,31 +138,41 @@ export default function App() {
     {
       id: 3,
       topic: "One Piece is a really great anime",
+      type: 'opponent' as const,
+      creator: "0x1234...5678",
+      status: 'active' as const,
       disputer1: {
         address: "0x1234...5678",
-        pointOfView: "One Piece has terrible pacing and filler episodes that make it unwatchable. The story drags on unnecessarily and the animation quality is inconsistent."
+        pointOfView: "One Piece has terrible pacing and filler episodes that make it unwatchable. The story drags on unnecessarily and the animation quality is inconsistent. Many episodes feel like they're just wasting time with unnecessary dialogue and repetitive scenes. The character designs are also quite strange and off-putting to many viewers.",
+        status: 'accepted' as const
       },
       disputer2: {
         address: "0x8765...4321",
-        pointOfView: "One Piece is a masterpiece with deep storytelling, complex characters, and meaningful themes. The pacing allows for proper character development."
+        pointOfView: "One Piece is a masterpiece with deep storytelling, complex characters, and meaningful themes. The pacing allows for proper character development and world-building. The filler episodes are actually quite entertaining and add depth to the story. The animation quality has improved significantly over time, and the character designs are unique and memorable.",
+        status: 'accepted' as const
       },
-      timestamp: "2h ago",
-      upvotes: 24,
-      downvotes: 8,
-      reposts: 12,
-      comments: 18,
+      timestamp: "6h ago",
+      upvotes: 31,
+      downvotes: 15,
+      reposts: 23,
+      comments: 28,
       bookmarked: false
     },
     {
       id: 4,
       topic: "React is better than Vue for enterprise applications",
+      type: 'opponent' as const,
+      creator: "0x1111...2222",
+      status: 'active' as const,
       disputer1: {
         address: "0x1111...2222",
-        pointOfView: "React's ecosystem is more mature, has better TypeScript support, and larger community. It's the industry standard for enterprise."
+        pointOfView: "React's ecosystem is more mature, has better TypeScript support, and larger community. It's the industry standard for enterprise applications with proven scalability and performance. The learning curve is worth it for the flexibility and power it provides.",
+        status: 'accepted' as const
       },
       disputer2: {
         address: "0x3333...4444",
-        pointOfView: "Vue is more intuitive, has better performance, and cleaner syntax. It's easier to learn and maintain for teams."
+        pointOfView: "Vue is more intuitive, has better performance, and cleaner syntax. It's easier to learn and maintain for teams, especially those new to frontend development. The documentation is excellent and the framework is more opinionated, leading to better consistency.",
+        status: 'accepted' as const
       },
       timestamp: "4h ago",
       upvotes: 18,
@@ -172,14 +184,9 @@ export default function App() {
     {
       id: 5,
       topic: "Coffee is superior to tea",
-      disputer1: {
-        address: "0x5555...6666",
-        pointOfView: "Coffee provides better caffeine boost, has richer flavor profiles, and is more versatile for different brewing methods."
-      },
-      disputer2: {
-        address: "0x7777...8888",
-        pointOfView: "Tea is healthier, has calming properties, and offers more variety in flavors and health benefits."
-      },
+      type: 'general' as const,
+      creator: "0x5555...6666",
+      status: 'active' as const,
       timestamp: "6h ago",
       upvotes: 31,
       downvotes: 15,
@@ -242,7 +249,7 @@ export default function App() {
 
         {/* Main Content */}
         <main className="flex-1 pb-20">
-          {activeTab === "home" && (
+          {activeView === "home" && (
             <div className="space-y-4 animate-fade-in">
               {disputes.map((dispute) => (
                 <DisputeCard 
@@ -253,53 +260,34 @@ export default function App() {
               ))}
             </div>
           )}
-          {activeTab === "search" && (
-            <div className="text-center py-8 animate-fade-in">
-              <Icon name="search" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
-              <h2 className="text-xl font-semibold mb-2">Search</h2>
-              <p className="text-[var(--app-foreground-muted)]">Search for disputes, users, and topics</p>
-            </div>
-          )}
-          {activeTab === "disputes" && (
+          {activeView === "disputes" && (
             <div className="space-y-4 animate-fade-in">
               <DisputesManagement />
             </div>
           )}
-          {activeTab === "profile" && (
-            <div className="text-center py-8 animate-fade-in">
-              <Icon name="user" size="lg" className="mx-auto mb-4 text-[var(--app-foreground-muted)]" />
-              <h2 className="text-xl font-semibold mb-2">Profile</h2>
-              <p className="text-[var(--app-foreground-muted)]">View and edit your profile</p>
+          {activeView === "search" && (
+            <div className="space-y-4 animate-fade-in">
+              <SearchComponent onDisputeClick={handleDisputeClick} />
+            </div>
+          )}
+          {activeView === "profile" && (
+            <div className="space-y-4 animate-fade-in">
+              <ProfileComponent />
             </div>
           )}
         </main>
 
-        {/* Floating Tab Bar */}
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40 animate-slide-up">
-          <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-2xl shadow-2xl border border-[var(--app-card-border)] px-2 py-2">
-            <div className="flex space-x-1">
-              {[
-                { id: "home", label: "Home", icon: "home" as const },
-                { id: "search", label: "Search", icon: "search" as const },
-                { id: "disputes", label: "Disputes", icon: "alert-circle" as const },
-                { id: "profile", label: "Profile", icon: "user" as const }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl transition-all ${
-                    activeTab === tab.id
-                      ? "bg-[var(--app-accent)] text-[var(--app-background)] tab-active"
-                      : "text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)] hover:bg-[var(--app-accent-light)]"
-                  }`}
-                >
-                  <Icon name={tab.icon} size="sm" className="mb-1" />
-                  <span className="text-xs font-medium">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* Global Tabs */}
+        <GlobalTabs 
+          onTabChange={(tabId) => {
+            if (tabId === "home") setActiveView("home");
+            if (tabId === "disputes") setActiveView("disputes");
+            if (tabId === "search") setActiveView("search");
+            if (tabId === "profile") setActiveView("profile");
+          }}
+          isMainPage={true}
+          currentActiveView={activeView}
+        />
       </div>
     </div>
   );
