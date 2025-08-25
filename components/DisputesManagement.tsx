@@ -5,6 +5,7 @@ import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
 import { DisputeCard } from "./DisputeCard";
 import { useAccount } from "wagmi";
+import Image from "next/image";
 
 interface Dispute {
   id: number;
@@ -364,10 +365,16 @@ export function DisputesManagement() {
                       </div>
                       
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          <Icon name="info" size="sm" className="inline mr-2" />
-                          Opponents will receive an invite link to join the dispute and add their points of view.
-                        </p>
+                        <div className="text-sm text-blue-800">
+                          <Image
+                            src="https://cdn.dribbble.com/userupload/24417588/file/original-6259636298271570fcce05da638a5d1b.jpg?format=webp&resize=400x300&vertical=center" 
+                            alt="info" 
+                            width={316} 
+                            height={316} 
+                            className="inline mr-2"
+                          />
+                          Share this link with your opponents to invite them to the dispute.
+                        </div>
                       </div>
                     </div>
                   )}
