@@ -7,6 +7,9 @@ import { Button } from "../../../components/DemoComponents";
 import { fetchComments, addComment, updateCommentVote, type Comment, type CommentsData, formatTimestamp } from "../../../lib/comments";
 import { useAccount } from "wagmi";
 import { GlobalTabs } from "../../../components/GlobalTabs";
+import { ConnectWallet, Wallet, WalletDropdownDisconnect, WalletDropdown } from "@coinbase/onchainkit/wallet";
+import { Avatar, Address, Name, EthBalance, Identity } from "@coinbase/onchainkit/identity";
+import { toast } from 'sonner';
 
 // Mock dispute data - in a real app, this would come from an API
 const mockDisputes = {
@@ -205,7 +208,7 @@ export default function DisputeDetailPage() {
       setShowAddComment(false);
     } catch (error) {
       console.error('Failed to add comment:', error);
-      alert('Failed to add comment. Please try again.');
+      toast.error('Failed to add comment. Please try again.');
     }
   };
 
@@ -397,15 +400,20 @@ export default function DisputeDetailPage() {
                   <p className="text-[var(--app-foreground-muted)] mb-6">
                     You need to connect your wallet to add comments and participate in discussions.
                   </p>
-                  <Button
-                    onClick={() => {
-                      // This will trigger the wallet connection modal
-                      // The user needs to connect their wallet first
-                    }}
-                    className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white px-6 py-3"
-                  >
-                    Connect Wallet
-                  </Button>
+                  <Wallet className="z-10">
+                    <ConnectWallet>
+                      <Name className="text-inherit" />
+                    </ConnectWallet>
+                    <WalletDropdown>
+                      <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                        <Avatar />
+                        <Name />
+                        <Address />
+                        <EthBalance />
+                      </Identity>
+                      <WalletDropdownDisconnect />
+                    </WalletDropdown>
+                  </Wallet>
                 </div>
               ) : (
                 <form onSubmit={handleAddComment} className="space-y-3">

@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useState } from 'react';
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
+import { useState, useEffect } from 'react';
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi';
+import { base } from 'wagmi/chains';
 import { disputeContract, type CreateDisputeParams, type EvidenceParams, type VoteParams, type DisputeCategory, type Priority } from '../lib/contracts';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 
 export function CreateDisputeForm() {
   const { address } = useAccount();
+  const chainId = useChainId();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,52 +27,119 @@ export function CreateDisputeForm() {
     customPeriod: '',
   });
 
+  // Helper function to get network name
+  const getNetworkName = (chainId: number) => {
+    switch (chainId) {
+      case base.id:
+        return "Base Network";
+      case 1:
+        return "Ethereum Mainnet";
+      case 11155111:
+        return "Sepolia Testnet";
+      case 137:
+        return "Polygon";
+      case 56:
+        return "BNB Smart Chain";
+      default:
+        return `Chain ID: ${chainId}`;
+    }
+  };
+
   // Execute the transaction
-  const { writeContract, isPending, data: hash } = useWriteContract();
+  const { writeContract, isPending, data: hash, error: writeError } = useWriteContract();
 
   // Wait for transaction
-  const { isLoading, isSuccess } = useWaitForTransactionReceipt({
+  const { isLoading, isSuccess, error: receiptError } = useWaitForTransactionReceipt({
     hash,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation checks
     if (!address) {
       toast.error('Please connect your wallet first');
       return;
     }
-    
-    const args = [{
-      respondent: formData.respondent as `0x${string}`,
-      title: formData.title,
-      description: formData.description,
-      category: formData.category,
-      priority: formData.priority,
-      requiresEscrow: formData.requiresEscrow,
-      escrowAmount: formData.requiresEscrow ? BigInt(formData.escrowAmount || '0') : BigInt(0),
-      customPeriod: BigInt(formData.customPeriod || '0'),
-      evidenceDescriptions: [],
-      evidenceHashes: [],
-      evidenceSupportsCreator: []
-    }];
-    
-    const value = formData.requiresEscrow ? BigInt(formData.escrowAmount || '0') : BigInt(0);
-    
-    writeContract({
-      ...disputeContract,
-      functionName: 'createDispute',
-      args,
-      value,
-    });
-    toast.success('Creating dispute...');
+
+    // Check if user is on Base network
+    if (chainId !== base.id) {
+      toast.warning(`You're currently on ${getNetworkName(chainId)}. For best experience, consider switching to Base network.`);
+      // Don't block the user, just warn them
+    }
+
+    if (!formData.respondent || !formData.title || !formData.description) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate respondent address format
+    if (!formData.respondent.startsWith('0x') || formData.respondent.length !== 42) {
+      toast.error('Please enter a valid Ethereum address (0x...)');
+      return;
+    }
+
+    // Validate escrow amount if required
+    if (formData.requiresEscrow && (!formData.escrowAmount || parseFloat(formData.escrowAmount) <= 0)) {
+      toast.error('Please enter a valid escrow amount');
+      return;
+    }
+
+    try {
+      const args = [{
+        respondent: formData.respondent as `0x${string}`,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        requiresEscrow: formData.requiresEscrow,
+        escrowAmount: formData.requiresEscrow ? BigInt(Math.floor(parseFloat(formData.escrowAmount || '0') * 1e18)) : BigInt(0),
+        customPeriod: BigInt(formData.customPeriod || '0'),
+        evidenceDescriptions: [],
+        evidenceHashes: [],
+        evidenceSupportsCreator: []
+      }];
+      
+      const value = formData.requiresEscrow ? BigInt(Math.floor(parseFloat(formData.escrowAmount || '0') * 1e18)) : BigInt(0);
+      
+      console.log('Creating dispute with args:', args);
+      console.log('Value:', value.toString());
+      console.log('Contract address:', disputeContract.address);
+      
+      writeContract({
+        ...disputeContract,
+        functionName: 'createDispute',
+        args,
+        value,
+      });
+      
+      toast.success('Creating dispute...');
+    } catch (error) {
+      console.error('Error creating dispute:', error);
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  if (isSuccess) {
-    toast.success('Dispute created successfully!');
+  // Show errors if they occur
+  if (writeError) {
+    console.error('Write error:', writeError);
+    // Don't show toast for every error, just log it
   }
 
+  if (receiptError) {
+    console.error('Receipt error:', receiptError);
+    // Don't show toast for every error, just log it
+  }
+
+  // Use useEffect to handle success state changes
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success('Dispute created successfully!');
+    }
+  }, [isSuccess]);
+
   return (
-    <div className="space-y-6 p-6 border rounded-lg">
+    <div className="space-y-6 p-6 border rounded-lg overflow-hidden break-words">
       <h2 className="text-2xl font-bold">Create New Dispute</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -179,6 +248,30 @@ export function CreateDisputeForm() {
         >
           {isLoading ? 'Creating Dispute...' : 'Create Dispute'}
         </Button>
+
+        {/* Debug info */}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div>Wallet: {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}</div>
+          <div>Network: {getNetworkName(chainId)} {chainId === base.id ? '✅' : '⚠️'}</div>
+          <div>Contract: {disputeContract.address}</div>
+        </div>
+
+        {/* Error Display with proper wrapping */}
+        {writeError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800 break-words">
+              <strong>Transaction Error:</strong> {writeError.message}
+            </p>
+          </div>
+        )}
+
+        {receiptError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800 break-words">
+              <strong>Transaction Failed:</strong> {receiptError.message}
+            </p>
+          </div>
+        )}
       </form>
     </div>
   );
@@ -221,9 +314,12 @@ export function SubmitEvidenceForm() {
     toast.success('Submitting evidence...');
   };
 
-  if (isSuccess) {
-    toast.success('Evidence submitted successfully!');
-  }
+  // Use useEffect to handle success state changes
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success('Evidence submitted successfully!');
+    }
+  }, [isSuccess]);
 
   return (
     <div className="space-y-6 p-6 border rounded-lg">
@@ -319,9 +415,12 @@ export function CastVoteForm() {
     toast.success('Casting vote...');
   };
 
-  if (isSuccess) {
-    toast.success('Vote cast successfully!');
-  }
+  // Use useEffect to handle success state changes
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success('Vote cast successfully!');
+    }
+  }, [isSuccess]);
 
   return (
     <div className="space-y-6 p-6 border rounded-lg">

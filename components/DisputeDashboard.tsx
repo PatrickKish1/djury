@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { CreateDisputeForm, SubmitEvidenceForm, CastVoteForm } from './DisputeActions';
 import { DisputeInfo, UserDisputes, DisputeEvidence } from './DisputeInfo';
+import { DisputeList } from './DisputeList';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -73,7 +74,7 @@ export function DisputeDashboard() {
         </TabsContent>
 
         <TabsContent value="view" className="space-y-4">
-          <DisputeInfo />
+          <DisputeList />
         </TabsContent>
 
         <TabsContent value="user" className="space-y-4">

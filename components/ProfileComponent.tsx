@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react";
 import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount, useSignMessage, useChainId } from "wagmi";
+import { base } from "wagmi/chains";
 import Image from "next/image";
 
 // Mock user profile data
@@ -47,6 +48,7 @@ const mockUserProfile = {
 export function ProfileComponent() {
   const { address, isConnected } = useAccount();
   const { signMessage } = useSignMessage();
+  const chainId = useChainId();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -117,6 +119,24 @@ export function ProfileComponent() {
     setNotificationType(type);
     setShowNotification(true);
     setTimeout(() => setShowNotification(false), 5000);
+  };
+
+  // Helper function to get network name
+  const getNetworkName = (chainId: number) => {
+    switch (chainId) {
+      case base.id:
+        return "Base (Coinbase L2)";
+      case 1:
+        return "Ethereum Mainnet";
+      case 11155111:
+        return "Sepolia Testnet";
+      case 137:
+        return "Polygon";
+      case 56:
+        return "BNB Smart Chain";
+      default:
+        return `Chain ID: ${chainId}`;
+    }
   };
 
   const handleSignInWithEthereum = async () => {
@@ -378,7 +398,7 @@ Resources:
           </div>
           <div className="flex items-center justify-between p-3 bg-[var(--app-accent-light)] rounded-lg">
             <span className="text-sm font-medium text-[var(--app-foreground)]">Network:</span>
-            <span className="text-sm text-[var(--app-foreground)]">Base (Coinbase L2)</span>
+            <span className="text-sm text-[var(--app-foreground)]">{getNetworkName(chainId)}</span>
           </div>
           <div className="flex items-center justify-between p-3 bg-[var(--app-accent-light)] rounded-lg">
             <span className="text-sm font-medium text-[var(--app-foreground)]">Connection Status:</span>
@@ -406,7 +426,7 @@ Resources:
             </Button>
             <Button
               onClick={() => {
-                const url = `https://basescan.org/address/${userProfile.address}`;
+                const url = `https://sepolia.basescan.org/address/${userProfile.address}`;
                 window.open(url, '_blank');
               }}
               className="bg-[var(--app-accent-light)] hover:bg-[var(--app-accent)] hover:text-white text-[var(--app-accent)] text-sm"

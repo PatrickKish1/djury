@@ -1,12 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
 import { DisputeCard } from "./DisputeCard";
-import { useAccount } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from "wagmi";
+import { base } from "wagmi/chains";
 import Image from "next/image";
+import { ConnectWallet, WalletDropdownDisconnect, WalletDropdown } from "@coinbase/onchainkit/wallet";
+import { Wallet } from "@coinbase/onchainkit/wallet";
+import { Avatar, Address, Name, EthBalance, Identity } from "@coinbase/onchainkit/identity";
+import { toast } from 'sonner';
+import { disputeContract } from '../lib/contracts';
+import { ContractActions } from './ContractActions';
 
 interface Dispute {
   id: number;
@@ -40,7 +47,8 @@ interface Dispute {
 
 export function DisputesManagement() {
   const { address, isConnected, isConnecting } = useAccount();
-  const [activeView, setActiveView] = useState<"create" | "my-disputes">("create");
+  const chainId = useChainId();
+  const [activeView, setActiveView] = useState<"create" | "my-disputes" | "contract-actions">("create");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [disputeType, setDisputeType] = useState<'general' | 'opponent'>('general');
   const [formData, setFormData] = useState({
@@ -49,6 +57,43 @@ export function DisputesManagement() {
     opponentAddresses: [""],
     opponentEmails: [""]
   });
+
+  // Helper function to get network name
+  const getNetworkName = (chainId: number) => {
+    switch (chainId) {
+      case base.id:
+        return "Base Network";
+      case 1:
+        return "Ethereum Mainnet";
+      case 11155111:
+        return "Sepolia Testnet";
+      case 137:
+        return "Polygon";
+      case 56:
+        return "BNB Smart Chain";
+      default:
+        return `Chain ID: ${chainId}`;
+    }
+  };
+
+  // Contract hooks for real dispute creation
+  const { writeContract, isPending, data: hash, error: writeError } = useWriteContract();
+  const { isLoading, isSuccess, error: receiptError } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  // Reset form when transaction is successful
+  useEffect(() => {
+    if (isSuccess) {
+      setFormData({
+        topic: "",
+        type: 'general',
+        opponentAddresses: [""],
+        opponentEmails: [""]
+      });
+      setShowCreateForm(false);
+    }
+  }, [isSuccess]);
 
   // Show loading state while connecting
   if (isConnecting) {
@@ -140,10 +185,10 @@ export function DisputesManagement() {
   const copyInviteLink = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      alert('Invite link copied to clipboard!');
+      toast.success('Invite link copied to clipboard!');
     } catch (error) {
       console.error('Failed to copy link:', error);
-      alert('Failed to copy link. Please copy manually.');
+      toast.error('Failed to copy link. Please copy manually.');
     }
   };
 
@@ -152,46 +197,65 @@ export function DisputesManagement() {
     window.location.href = `/disputes/${disputeId}`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation checks
     if (!isConnected || !address) {
-      alert("Please connect your wallet to create a dispute.");
+      toast.error("Please connect your wallet to create a dispute.");
       return;
     }
-    
+
+    // Check if user is on Base network
+    if (chainId !== base.id) {
+      toast.warning(`You're currently on ${getNetworkName(chainId)}. For best experience, consider switching to Base network.`);
+      // Don't block the user, just warn them
+    }
+
+    if (!formData.topic.trim()) {
+      toast.error("Please enter a dispute topic.");
+      return;
+    }
+
     // Validate opponent addresses if opponent type
     if (disputeType === 'opponent') {
       const validAddresses = formData.opponentAddresses.filter(addr => addr.trim() !== "");
       if (validAddresses.length === 0) {
-        alert("Please add at least one opponent address for opponent disputes.");
+        toast.error("Please add at least one opponent address for opponent disputes.");
         return;
       }
     }
-    
-    // Here you would typically submit to an API
-    const newDispute = {
-      ...formData,
-      creator: address,
-      status: 'draft',
-      inviteUrl: disputeType === 'opponent' ? generateInviteUrl(Date.now()) : undefined
-    };
-    
-    console.log("Creating new dispute:", newDispute);
-    
-    // Reset form and hide it
-    setFormData({
-      topic: "",
-      type: 'general',
-      opponentAddresses: [""],
-      opponentEmails: [""]
-    });
-    setShowCreateForm(false);
-    
-    // Show success message
-    if (disputeType === 'opponent') {
-      alert("Opponent dispute created! Share the invite link with your opponents.");
-    } else {
-      alert("General dispute created successfully!");
+
+    try {
+      // Create dispute on the smart contract
+      const args = [{
+        respondent: disputeType === 'opponent' ? formData.opponentAddresses[0] as `0x${string}` : address as `0x${string}`,
+        title: formData.topic,
+        description: formData.topic, // Using topic as description for now
+        category: 0, // General category
+        priority: 1, // Medium priority
+        requiresEscrow: false,
+        escrowAmount: BigInt(0),
+        customPeriod: BigInt(0),
+        evidenceDescriptions: [],
+        evidenceHashes: [],
+        evidenceSupportsCreator: []
+      }];
+
+      console.log('Creating dispute with args:', args);
+      console.log('Contract address:', disputeContract.address);
+
+      writeContract({
+        ...disputeContract,
+        functionName: 'createDispute',
+        args,
+        value: BigInt(0), // No escrow for now
+      });
+
+      toast.success('Creating dispute on blockchain...');
+    } catch (error) {
+      console.error('Error creating dispute:', error);
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -224,6 +288,16 @@ export function DisputesManagement() {
         >
           My Disputes
         </button>
+        <button
+          onClick={() => setActiveView("contract-actions")}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            activeView === "contract-actions"
+              ? "bg-[var(--app-accent)] text-[var(--app-background)]"
+              : "text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
+          }`}
+        >
+          Contract Actions
+        </button>
       </div>
 
       {/* Content */}
@@ -242,18 +316,23 @@ export function DisputesManagement() {
                   <p className="text-[var(--app-foreground-muted)] mb-6">
                     You need to connect your wallet to create disputes and participate in the platform.
                   </p>
-                  <Button
-                    onClick={() => {
-                      // This will trigger the wallet connection modal
-                      // The user needs to connect their wallet first
-                    }}
-                    className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white px-6 py-3"
-                  >
-                    Connect Wallet
-                  </Button>
+                  <Wallet className="z-10">
+              <ConnectWallet>
+                <Name className="text-inherit" />
+              </ConnectWallet>
+              <WalletDropdown>
+                <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                  <Avatar />
+                  <Name />
+                  <Address />
+                  <EthBalance />
+                </Identity>
+                <WalletDropdownDisconnect />
+              </WalletDropdown>
+            </Wallet>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6 overflow-hidden break-words">
                   {/* Wallet Info */}
                   <div className="p-3 bg-[var(--app-accent-light)] rounded-lg">
                     <p className="text-sm text-[var(--app-foreground)]">
@@ -384,10 +463,55 @@ export function DisputesManagement() {
                   <div className="pt-4">
                     <Button
                       type="submit"
+                      disabled={isPending || isLoading || !address}
                       className="w-full bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white py-3"
                     >
-                      Create {disputeType === 'opponent' ? 'Opponent' : 'General'} Dispute
+                      {isLoading ? 'Creating Dispute...' : 'Create ' + (disputeType === 'opponent' ? 'Opponent' : 'General') + ' Dispute'}
                     </Button>
+                  </div>
+
+                  {/* Transaction Status */}
+                  {isPending && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">Transaction submitted! Waiting for confirmation...</p>
+                    </div>
+                  )}
+
+                  {isSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800">Dispute created successfully on blockchain!</p>
+                      {hash && (
+                        <p className="text-xs text-green-600 mt-1">
+                          Transaction: <a href={`https://sepolia.basescan.org/tx/${hash}`} target="_blank" rel="noopener noreferrer" className="underline">
+                            {hash.slice(0, 10)}...{hash.slice(-8)}
+                          </a>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Error Handling */}
+                  {writeError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800 break-words">
+                        <strong>Transaction Error:</strong> {writeError.message}
+                      </p>
+                    </div>
+                  )}
+
+                  {receiptError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800 break-words">
+                        <strong>Transaction Failed:</strong> {receiptError.message}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Debug Info */}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Wallet: {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}</div>
+                    <div>Network: {getNetworkName(chainId)} {chainId === base.id ? '✅' : '⚠️'}</div>
+                    <div>Contract: {disputeContract.address}</div>
                   </div>
                 </form>
               )}
@@ -469,6 +593,10 @@ export function DisputesManagement() {
             </div>
           )}
         </div>
+      )}
+
+      {activeView === "contract-actions" && (
+        <ContractActions />
       )}
     </div>
   );

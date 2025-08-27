@@ -7,6 +7,9 @@ import { Icon } from "../../../../../components/DemoComponents";
 import { Button } from "../../../../../components/DemoComponents";
 import { useAccount } from "wagmi";
 import { GlobalTabs } from "../../../../../components/GlobalTabs";
+import { Wallet, WalletDropdownDisconnect, WalletDropdown, ConnectWallet } from "@coinbase/onchainkit/wallet";
+import { Avatar, Address, Name, EthBalance, Identity } from "@coinbase/onchainkit/identity";
+import { toast } from 'sonner';
 
 // Mock dispute data - in a real app, this would come from an API
 const mockDisputes = {
@@ -89,7 +92,7 @@ export default function DisputeInvitePage() {
       setSubmitted(true);
     } catch (error) {
       console.error('Failed to submit POV:', error);
-      alert('Failed to submit your point of view. Please try again.');
+      toast.error('Failed to submit your point of view. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -221,15 +224,20 @@ export default function DisputeInvitePage() {
               <p className="text-[var(--app-foreground-muted)] mb-6">
                 You need to connect your wallet to participate in this dispute.
               </p>
-              <Button
-                onClick={() => {
-                  // This will trigger the wallet connection modal
-                  // The user needs to connect their wallet first
-                }}
-                className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white px-6 py-3"
-              >
-                Connect Wallet
-              </Button>
+              <Wallet className="z-10">
+              <ConnectWallet>
+                <Name className="text-inherit" />
+              </ConnectWallet>
+              <WalletDropdown>
+                <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                  <Avatar />
+                  <Name />
+                  <Address />
+                  <EthBalance />
+                </Identity>
+                <WalletDropdownDisconnect />
+              </WalletDropdown>
+            </Wallet>
             </div>
           ) : isAlreadyDisputer && hasSubmittedPOV ? (
             <div className="text-center py-8">
