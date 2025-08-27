@@ -159,18 +159,6 @@ export default function DisputeDetailPage() {
     type: activeTab as 'disputers' | 'users'
   });
 
-  // Load comments on component mount
-  useEffect(() => {
-    if (dispute) {
-      loadComments();
-    }
-  }, [dispute]);
-
-  // Update comment type when tab changes
-  useEffect(() => {
-    setNewComment(prev => ({ ...prev, type: activeTab }));
-  }, [activeTab]);
-
   const loadComments = async () => {
     try {
       setLoading(true);
@@ -182,6 +170,18 @@ export default function DisputeDetailPage() {
       setLoading(false);
     }
   };
+  // Load comments on component mount
+  useEffect(() => {
+    if (dispute) {
+      loadComments();
+    }
+  }, [dispute, loadComments]);
+
+  // Update comment type when tab changes
+  useEffect(() => {
+    setNewComment(prev => ({ ...prev, type: activeTab }));
+  }, [activeTab]);
+
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();

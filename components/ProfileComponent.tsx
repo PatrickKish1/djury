@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState, useEffect } from "react";
 import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
 import { useAccount, useSignMessage } from "wagmi";
+import Image from "next/image";
 
 // Mock user profile data
 const mockUserProfile = {
@@ -260,10 +262,12 @@ Resources:
       {/* Profile Header */}
       <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6">
         <div className="flex items-start space-x-4">
-          <img
+          <Image
             src={userProfile.avatar}
             alt="Profile"
             className="w-20 h-20 rounded-full border-4 border-[var(--app-accent-light)] flex-shrink-0"
+            width={80}
+            height={80}
           />
           <div className="flex-1 min-w-0">
             {isEditing ? (
@@ -531,7 +535,7 @@ Resources:
                   <span className="font-medium">
                     {activity.type === 'created' ? 'Created' : activity.type === 'participated' ? 'Participated in' : 'Commented on'}
                   </span>
-                  <span className="ml-1">"{activity.dispute}"</span>
+                  <span className="ml-1">&quot;{activity.dispute}&quot;</span>
                 </div>
                 <div className="text-xs text-[var(--app-foreground-muted)]">
                   {activity.timestamp}

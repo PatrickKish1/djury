@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
 import { Icon } from "./DemoComponents";
-import { Button } from "./DemoComponents";
+// import { Button } from "./DemoComponents";
 import { DisputeCard } from "./DisputeCard";
 
 // Mock trending disputes data
@@ -154,7 +155,7 @@ export function SearchComponent({ onDisputeClick }: SearchComponentProps) {
       {searchQuery && (
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">
-            Search Results for "{searchQuery}"
+            Search Results for &quot;{searchQuery}&quot;
           </h2>
           {searchResults.length > 0 ? (
             <div className="space-y-4">
