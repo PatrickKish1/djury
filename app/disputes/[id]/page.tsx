@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Icon } from "../../../components/DemoComponents";
 import { Button } from "../../../components/DemoComponents";
@@ -159,19 +159,7 @@ export default function DisputeDetailPage() {
     type: activeTab as 'disputers' | 'users'
   });
 
-  // Load comments on component mount
-  useEffect(() => {
-    if (dispute) {
-      loadComments();
-    }
-  }, [dispute]);
-
-  // Update comment type when tab changes
-  useEffect(() => {
-    setNewComment(prev => ({ ...prev, type: activeTab }));
-  }, [activeTab]);
-
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     try {
       setLoading(true);
       const commentsData = await fetchComments(disputeId.toString());
@@ -181,7 +169,19 @@ export default function DisputeDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [disputeId]);
+  // Load comments on component mount
+  useEffect(() => {
+    if (dispute) {
+      loadComments();
+    }
+  }, [dispute, loadComments]);
+
+  // Update comment type when tab changes
+  useEffect(() => {
+    setNewComment(prev => ({ ...prev, type: activeTab }));
+  }, [activeTab]);
+
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();

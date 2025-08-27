@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Icon } from "../../../../../components/DemoComponents";
 import { Button } from "../../../../../components/DemoComponents";
@@ -164,9 +165,9 @@ export default function DisputeInvitePage() {
             <div className="w-16 h-16 bg-[var(--app-accent-light)] rounded-full flex items-center justify-center mx-auto mb-4">
               <Icon name="user-check" size="lg" className="text-[var(--app-accent)]" />
             </div>
-            <h1 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">You're Invited!</h1>
+            <h1 className="text-2xl font-bold text-[var(--app-foreground)] mb-2">{`You're Invited!`}</h1>
             <p className="text-[var(--app-foreground-muted)]">
-              You've been invited to participate in a dispute. Add your point of view below.
+              {`You've been invited to participate in a dispute. Add your point of view below.`}
             </p>
           </div>
 
