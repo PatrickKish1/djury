@@ -14,6 +14,7 @@ import { Avatar, Address, Name, EthBalance, Identity } from "@coinbase/onchainki
 import { toast } from 'sonner';
 import { disputeContract } from '../lib/contracts';
 import { ContractActions } from './ContractActions';
+import BettingIntegration from '../integration/bettingIntegration';
 
 interface Dispute {
   id: number;
@@ -48,7 +49,7 @@ interface Dispute {
 export function DisputesManagement() {
   const { address, isConnected, isConnecting } = useAccount();
   const chainId = useChainId();
-  const [activeView, setActiveView] = useState<"create" | "my-disputes" | "contract-actions">("create");
+  const [activeView, setActiveView] = useState<"create" | "my-disputes" | "contract-actions" | "betting">("create");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [disputeType, setDisputeType] = useState<'general' | 'opponent'>('general');
   const [formData, setFormData] = useState({
@@ -297,6 +298,16 @@ export function DisputesManagement() {
           }`}
         >
           Contract Actions
+        </button>
+        <button
+          onClick={() => setActiveView("betting")}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            activeView === "betting"
+              ? "bg-[var(--app-accent)] text-[var(--app-background)]"
+              : "text-[var(--app-foreground-muted)] hover:text-[var(--app-foreground)]"
+          }`}
+        >
+          Betting
         </button>
       </div>
 
@@ -597,6 +608,10 @@ export function DisputesManagement() {
 
       {activeView === "contract-actions" && (
         <ContractActions />
+      )}
+
+      {activeView === "betting" && (
+        <BettingIntegration />
       )}
     </div>
   );

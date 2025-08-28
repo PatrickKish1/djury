@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import BettingIntegration from '../integration/bettingIntegration';
 
 export function DisputeDashboard() {
   const { address, isConnected } = useAccount();
@@ -53,12 +54,11 @@ export function DisputeDashboard() {
 
       {/* Main tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="create">Create Dispute</TabsTrigger>
-          <TabsTrigger value="evidence">Submit Evidence</TabsTrigger>
-          <TabsTrigger value="vote">Cast Vote</TabsTrigger>
-          <TabsTrigger value="view">View Disputes</TabsTrigger>
-          <TabsTrigger value="user">User Disputes</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="create">Create</TabsTrigger>
+          <TabsTrigger value="view">View</TabsTrigger>
+          <TabsTrigger value="actions">Actions</TabsTrigger>
+          <TabsTrigger value="betting">Betting</TabsTrigger>
         </TabsList>
 
         <TabsContent value="create" className="space-y-4">
@@ -79,6 +79,18 @@ export function DisputeDashboard() {
 
         <TabsContent value="user" className="space-y-4">
           <UserDisputes />
+        </TabsContent>
+
+        <TabsContent value="actions" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <CreateDisputeForm />
+            <SubmitEvidenceForm />
+            <CastVoteForm />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="betting" className="space-y-4">
+          <BettingIntegration />
         </TabsContent>
       </Tabs>
 
