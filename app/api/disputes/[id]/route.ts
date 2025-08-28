@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
-import { createPublicClient, http, parseAbiItem } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
+import { contractAbi } from '@/contracts/contractabi';
 
 // Create a public client for reading from Base network
 const client = createPublicClient({
@@ -8,16 +10,16 @@ const client = createPublicClient({
   transport: http(),
 });
 
-// Contract address and ABI for the dispute function
+// Contract address
 const contractAddress = '0x944f3c7305598e724aBFBAAEc4ee93a3b2Db7DDa';
-const disputeAbi = parseAbiItem('function disputes(uint256) view returns (tuple(address,address,string,string,uint8,uint8,uint256,uint40,uint40,uint40,uint40,uint40,uint8,uint256,uint256,address,uint256,string,bool,uint40))');
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const disputeId = params.id;
+    const { id } = await params;
+    const disputeId = id;
     
     if (!disputeId || isNaN(Number(disputeId))) {
       return NextResponse.json({ error: 'Invalid dispute ID' }, { status: 400 });
@@ -26,7 +28,7 @@ export async function GET(
     // Read dispute data from the smart contract
     const disputeData = await client.readContract({
       address: contractAddress as `0x${string}`,
-      abi: [disputeAbi],
+      abi: contractAbi,
       functionName: 'disputes',
       args: [BigInt(disputeId)],
     });
