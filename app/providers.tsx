@@ -7,10 +7,19 @@ import { WagmiProvider, createConfig, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Create wagmi config
+// base sepolia
+// const config = createConfig({
+//   chains: [baseSepolia],
+//   transports: {
+//     [baseSepolia.id]: http(),
+//   },
+// });
+
+// kairos
 const config = createConfig({
-  chains: [baseSepolia],
+  chains: [kairos],
   transports: {
-    [baseSepolia.id]: http(),
+    [kairos.id]: http(),
   },
 });
 
@@ -22,7 +31,8 @@ export function Providers(props: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <MiniKitProvider
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-          chain={baseSepolia}
+          // chain={baseSepolia}
+          chain={kairos}
           config={{
             appearance: {
               mode: "auto",

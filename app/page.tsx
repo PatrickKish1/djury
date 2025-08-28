@@ -19,6 +19,7 @@ import {
   Wallet,
   WalletDropdown,
   WalletDropdownDisconnect,
+  WalletModal,
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "../components/DemoComponents";
@@ -37,7 +38,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeView, setActiveView] = useState<"home" | "disputes" | "search" | "profile">("home");
   const router = useRouter();
-
+  const [showModal, setShowModal] = useState(true);
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
 
@@ -244,6 +245,7 @@ export default function App() {
                 </Identity>
                 <WalletDropdownDisconnect />
               </WalletDropdown>
+              <WalletModal isOpen={showModal} onClose={() => {setShowModal(false)}} />
             </Wallet>
           </div>
         </header>
