@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
 import { DisputeCard } from "./DisputeCard";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useReadContract } from "wagmi";
 import { base } from "wagmi/chains";
 import Image from "next/image";
 import { ConnectWallet, WalletDropdownDisconnect, WalletDropdown } from "@coinbase/onchainkit/wallet";
@@ -16,6 +16,13 @@ import { toast } from 'sonner';
 import { disputeContract } from '../lib/contracts';
 import { ContractActions } from './ContractActions';
 import BettingIntegration from '../integration/bettingIntegration';
+import { createPublicClient, http } from 'viem';
+
+// Create a public client for reading from Base network
+const client = createPublicClient({
+  chain: base,
+  transport: http(),
+});
 
 interface Dispute {
   id: number;
@@ -57,7 +64,9 @@ export function DisputesManagement() {
     topic: "",
     type: 'general' as 'general' | 'opponent',
     opponentAddresses: [""],
-    opponentEmails: [""]
+    opponentEmails: [""],
+    priority: "0" as "0" | "1" | "2",
+    escrowAmount: "0.01"
   });
 
   // Helper function to get network name
@@ -84,18 +93,46 @@ export function DisputesManagement() {
     hash,
   });
 
+  // Contract read hooks for fetching real dispute data
+  const { data: disputeCounter } = useReadContract({
+    ...disputeContract,
+    functionName: 'disputeCounter',
+  });
+
+  const { data: userDisputesFromContract } = useReadContract({
+    ...disputeContract,
+    functionName: 'getUserDisputes',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address }
+  });
+
   // Reset form when transaction is successful
   useEffect(() => {
     if (isSuccess) {
+      toast.success('Dispute created successfully!');
       setFormData({
         topic: "",
         type: 'general',
         opponentAddresses: [""],
-        opponentEmails: [""]
+        opponentEmails: [""],
+        priority: "0",
+        escrowAmount: "0.01"
       });
       setShowCreateForm(false);
+      // Switch to my-disputes tab to show the newly created dispute
+      setActiveView("my-disputes");
     }
   }, [isSuccess]);
+
+  // Handle transaction errors
+  useEffect(() => {
+    if (writeError) {
+      toast.error('Failed to create dispute. Please try again.');
+    }
+    if (receiptError) {
+      toast.error('Transaction failed. Please try again.');
+    }
+  }, [writeError, receiptError]);
 
   // Show loading state while connecting
   if (isConnecting) {
@@ -147,6 +184,104 @@ export function DisputesManagement() {
       bookmarked: true
     }
   ];
+
+  // Function to fetch dispute details from contract
+  const fetchDisputeDetails = async (disputeId: number): Promise<Dispute | null> => {
+    try {
+      const disputeData = await client.readContract({
+        address: disputeContract.address as `0x${string}`,
+        abi: disputeContract.abi,
+        functionName: 'disputes',
+        args: [BigInt(disputeId)],
+      });
+
+      if (!disputeData) return null;
+
+      // Parse the dispute data into our Dispute format
+      const [
+        disputeCreatorAddress,
+        respondentAddress,
+        title,
+        description,
+        category,
+        priority,
+        escrowAmount,
+        creationTime,
+        activationTime,
+        endTime,
+        votingEndTime,
+        resolutionDeadline,
+        status,
+        creatorVotes,
+        respondentVotes,
+        winner,
+        winnerNftTokenId,
+        resolutionSummary,
+        requiresEscrow,
+        votingStartTime
+      ] = disputeData as any[];
+
+      return {
+        id: disputeId,
+        topic: title,
+        type: requiresEscrow ? 'opponent' : 'general',
+        creator: disputeCreatorAddress,
+        status: status === 0 ? 'draft' : status === 1 ? 'active' : 'completed',
+        inviteUrl: requiresEscrow ? `https://djury.app/disputes/${disputeId}/invite/${Math.random().toString(36).substr(2, 9)}` : undefined,
+        disputer1: {
+          address: disputeCreatorAddress,
+          pointOfView: description,
+          status: 'accepted'
+        },
+        disputer2: requiresEscrow ? {
+          address: respondentAddress,
+          pointOfView: "Opponent's point of view",
+          status: 'pending'
+        } : undefined,
+        timestamp: new Date(Number(creationTime) * 1000).toLocaleString(),
+        upvotes: Number(creatorVotes),
+        downvotes: Number(respondentVotes),
+        reposts: 0,
+        comments: 0,
+        bookmarked: false
+      };
+    } catch (error) {
+      console.error('Error fetching dispute details:', error);
+      return null;
+    }
+  };
+
+  // State for real dispute data
+  const [realUserDisputes, setRealUserDisputes] = useState<Dispute[]>([]);
+  const [isLoadingDisputes, setIsLoadingDisputes] = useState(false);
+
+  // Fetch real dispute data when user disputes change
+  useEffect(() => {
+    const loadRealDisputes = async () => {
+      if (userDisputesFromContract && userDisputesFromContract.length > 0) {
+        setIsLoadingDisputes(true);
+        try {
+          const disputes = await Promise.all(
+            userDisputesFromContract.map((id: bigint) => fetchDisputeDetails(Number(id)))
+          );
+          const validDisputes = disputes.filter((d: Dispute | null): d is Dispute => d !== null);
+          setRealUserDisputes(validDisputes);
+        } catch (error) {
+          console.error('Error loading real disputes:', error);
+          setRealUserDisputes([]);
+        } finally {
+          setIsLoadingDisputes(false);
+        }
+      } else {
+        setRealUserDisputes([]);
+      }
+    };
+
+    loadRealDisputes();
+  }, [userDisputesFromContract]);
+
+  // Use real disputes if available, otherwise fall back to mock data
+  const displayDisputes = realUserDisputes.length > 0 ? realUserDisputes : userDisputes;
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -235,10 +370,10 @@ export function DisputesManagement() {
         title: formData.topic,
         description: formData.topic, // Using topic as description for now
         category: 0, // General category
-        priority: 1, // Medium priority
-        requiresEscrow: false,
-        escrowAmount: BigInt(0),
-        customPeriod: BigInt(0),
+        priority: parseInt(formData.priority, 10), // Use priority from form
+        requiresEscrow: disputeType === 'opponent', // Require escrow for opponent disputes
+        escrowAmount: disputeType === 'opponent' ? BigInt(Math.floor(parseFloat(formData.escrowAmount) * 10 ** 18)) : BigInt(0), // Use escrow amount from form
+        customPeriod: BigInt(0), // Use default period
         evidenceDescriptions: [],
         evidenceHashes: [],
         evidenceSupportsCreator: []
@@ -251,13 +386,13 @@ export function DisputesManagement() {
         ...disputeContract,
         functionName: 'createDispute',
         args,
-        value: BigInt(0), // No escrow for now
+        value: disputeType === 'opponent' ? BigInt(Math.floor(parseFloat(formData.escrowAmount) * 10 ** 18)) : BigInt(0), // Send escrow amount if opponent dispute
       });
 
       toast.success('Creating dispute on blockchain...');
     } catch (error) {
       console.error('Error creating dispute:', error);
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('Failed to create dispute. Please try again.');
     }
   };
 
@@ -411,6 +546,22 @@ export function DisputesManagement() {
                     />
                   </div>
 
+                  {/* Priority Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                      Priority Level *
+                    </label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => handleInputChange("priority", e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                    >
+                      <option value="0">Low</option>
+                      <option value="1">Medium</option>
+                      <option value="2">High</option>
+                    </select>
+                  </div>
+
                   {/* Opponent Management (only for opponent disputes) */}
                   {disputeType === 'opponent' && (
                     <div className="space-y-4">
@@ -454,6 +605,26 @@ export function DisputesManagement() {
                             )}
                           </div>
                         ))}
+                      </div>
+
+                      {/* Escrow Amount for Opponent Disputes */}
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                          Escrow Amount (ETH) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={formData.escrowAmount}
+                          onChange={(e) => handleInputChange("escrowAmount", e.target.value)}
+                          placeholder="0.01"
+                          className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                          required
+                        />
+                        <p className="text-xs text-[var(--app-foreground-muted)] mt-1">
+                          This amount will be held in escrow until the dispute is resolved.
+                        </p>
                       </div>
                       
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -502,23 +673,6 @@ export function DisputesManagement() {
                     </div>
                   )}
 
-                  {/* Error Handling */}
-                  {writeError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-800 break-words">
-                        <strong>Transaction Error:</strong> {writeError.message}
-                      </p>
-                    </div>
-                  )}
-
-                  {receiptError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-800 break-words">
-                        <strong>Transaction Failed:</strong> {receiptError.message}
-                      </p>
-                    </div>
-                  )}
-
                   {/* Debug Info */}
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div>Wallet: {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}</div>
@@ -548,13 +702,24 @@ export function DisputesManagement() {
 
       {activeView === "my-disputes" && (
         <div className="space-y-4">
-          {userDisputes.length > 0 ? (
+          {isLoadingDisputes ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--app-accent)] mx-auto mb-4"></div>
+              <p className="text-[var(--app-foreground-muted)]">Loading disputes from blockchain...</p>
+            </div>
+          ) : displayDisputes.length > 0 ? (
             <div>
               <h3 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">
-                My Created Disputes ({userDisputes.length})
+                My Created Disputes ({displayDisputes.length})
+                {realUserDisputes.length > 0 && (
+                  <span className="text-sm text-green-600 ml-2">✓ Live from blockchain</span>
+                )}
+                {realUserDisputes.length === 0 && userDisputes.length > 0 && (
+                  <span className="text-sm text-orange-600 ml-2">⚠️ Mock data (contract not responding)</span>
+                )}
               </h3>
               <div className="space-y-4">
-                {userDisputes.map((dispute) => (
+                {displayDisputes.map((dispute) => (
                   <div key={dispute.id} className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4">
                     <DisputeCard 
                       dispute={dispute} 

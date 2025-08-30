@@ -2,164 +2,169 @@
 
 import { useState } from "react";
 import { Icon } from "./DemoComponents";
-
-interface Dispute {
-  id: number;
-  topic: string;
-  type: 'general' | 'opponent';
-  creator: string;
-  status: 'draft' | 'active' | 'completed';
-  inviteUrl?: string;
-  disputer1?: {
-    address: string;
-    pointOfView: string;
-    status: 'pending' | 'accepted' | 'declined';
-  };
-  disputer2?: {
-    address: string;
-    pointOfView: string;
-    status: 'pending' | 'accepted' | 'declined';
-  };
-  opponents?: {
-    address: string;
-    pointOfView: string;
-    status: 'pending' | 'accepted' | 'declined';
-  }[];
-  timestamp: string;
-  upvotes: number;
-  downvotes: number;
-  reposts: number;
-  comments: number;
-  bookmarked: boolean;
-}
+import { Button } from "./DemoComponents";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { disputeContract } from '../lib/contracts';
+import { toast } from 'sonner';
 
 interface DisputeCardProps {
-  dispute: Dispute;
+  dispute: {
+    id: number;
+    topic: string;
+    type: 'general' | 'opponent';
+    creator: string;
+    status: 'draft' | 'active' | 'completed';
+    inviteUrl?: string;
+    disputer1?: {
+      address: string;
+      pointOfView: string;
+      status: 'pending' | 'accepted' | 'declined';
+    };
+    disputer2?: {
+      address: string;
+      pointOfView: string;
+      status: 'pending' | 'accepted' | 'declined';
+    };
+    opponents?: {
+      address: string;
+      pointOfView: string;
+      status: 'pending' | 'accepted' | 'declined';
+    }[];
+    timestamp: string;
+    upvotes: number;
+    downvotes: number;
+    reposts: number;
+    comments: number;
+    bookmarked: boolean;
+  };
   onClick: () => void;
 }
 
 export function DisputeCard({ dispute, onClick }: DisputeCardProps) {
+  const { address, isConnected } = useAccount();
   const [upvoted, setUpvoted] = useState(false);
   const [downvoted, setDownvoted] = useState(false);
   const [bookmarked, setBookmarked] = useState(dispute.bookmarked);
 
-  const handleUpvote = () => {
+  // Contract hooks for voting
+  const { writeContract: voteContract, isPending: isVotePending, data: voteHash } = useWriteContract();
+  const { isLoading: isVoteLoading, isSuccess: isVoteSuccess } = useWaitForTransactionReceipt({
+    hash: voteHash,
+  });
+
+  // Handle upvote (supports creator)
+  const handleUpvote = async () => {
+    if (!isConnected || !address) {
+      toast.error('Please connect your wallet to vote');
+      return;
+    }
+
     if (downvoted) {
       setDownvoted(false);
     }
     setUpvoted(!upvoted);
+
+    try {
+      voteContract({
+        ...disputeContract,
+        functionName: 'castVote',
+        args: [
+          BigInt(dispute.id),
+          true, // supportsCreator = true for upvote
+          "Upvoted this dispute" // reason
+        ],
+      });
+      toast.success('Vote submitted...');
+    } catch (error) {
+      console.error('Error casting vote:', error);
+      toast.error('Failed to submit vote');
+    }
   };
 
-  const handleDownvote = () => {
+  // Handle downvote (does not support creator)
+  const handleDownvote = async () => {
+    if (!isConnected || !address) {
+      toast.error('Please connect your wallet to vote');
+      return;
+    }
+
     if (upvoted) {
       setUpvoted(false);
     }
     setDownvoted(!downvoted);
+
+    try {
+      voteContract({
+        ...disputeContract,
+        functionName: 'castVote',
+        args: [
+          BigInt(dispute.id),
+          false, // supportsCreator = false for downvote
+          "Downvoted this dispute" // reason
+        ],
+      });
+      toast.success('Vote submitted...');
+    } catch (error) {
+      console.error('Error casting vote:', error);
+      toast.error('Failed to submit vote');
+    }
   };
 
+  // Handle bookmark toggle
   const handleBookmark = () => {
     setBookmarked(!bookmarked);
   };
 
-  // Get disputer previews based on dispute type
-  const getDisputerPreviews = () => {
-    if (dispute.type === 'opponent' && dispute.disputer1 && dispute.disputer2) {
-      return [
-        {
-          address: dispute.disputer1.address,
-          pointOfView: dispute.disputer1.pointOfView,
-          status: dispute.disputer1.status,
-          type: 'against' as const
-        },
-        {
-          address: dispute.disputer2.address,
-          pointOfView: dispute.disputer2.pointOfView,
-          status: dispute.disputer2.status,
-          type: 'for' as const
-        }
-      ];
-    } else if (dispute.type === 'general') {
-      return [
-        {
-          address: dispute.creator,
-          pointOfView: "General community dispute - open to all",
-          status: 'active' as const,
-          type: 'general' as const
-        }
-      ];
-    }
-    return [];
-  };
-
-  const disputerPreviews = getDisputerPreviews();
-
   return (
-    <div 
-      onClick={onClick}
-      className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-[1.02] post-card-hover"
-    >
-      {/* Dispute Type Badge */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            dispute.type === 'opponent' 
-              ? 'bg-blue-100 text-blue-800' 
-              : 'bg-green-100 text-green-800'
-          }`}>
-            {dispute.type === 'opponent' ? 'Opponent Dispute' : 'General Dispute'}
-          </span>
-          {dispute.status === 'draft' && (
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-              Draft
+    <div className="cursor-pointer hover:bg-[var(--app-accent-light)] transition-colors rounded-lg p-4" onClick={onClick}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-[var(--app-foreground)] mb-2 leading-tight">
+            {dispute.topic}
+          </h3>
+          <div className="flex items-center space-x-4 text-sm text-[var(--app-foreground-muted)] mb-3">
+            <span>Created by: {dispute.creator}</span>
+            <span>•</span>
+            <span>{dispute.timestamp}</span>
+            <span>•</span>
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              dispute.status === 'active' ? 'bg-green-100 text-green-800' :
+              dispute.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {dispute.status}
             </span>
-          )}
+          </div>
         </div>
-        <div className="text-sm text-[var(--app-foreground-muted)]">
-          {dispute.timestamp}
-        </div>
+        
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBookmark();
+          }}
+          className={`p-2 rounded-lg transition-colors ${
+            bookmarked ? "bg-[var(--app-accent-light)] text-[var(--app-accent)]" : "hover:bg-[var(--app-accent-light)]"
+          }`}
+        >
+          <Icon name="bookmark" size="sm" />
+        </button>
       </div>
 
-      {/* Dispute Topic */}
-      <h3 className="text-xl font-bold text-[var(--app-foreground)] mb-4 leading-tight">
-        {dispute.topic}
-      </h3>
-      
-      {/* Disputers Preview */}
-      {disputerPreviews.length > 0 && (
-        <div className="space-y-3 mb-4">
-          {disputerPreviews.map((disputer, index) => (
-            <div 
-              key={index}
-              className={`p-3 rounded-lg border-l-4 ${
-                disputer.type === 'against' 
-                  ? 'border-red-500 bg-red-50' 
-                  : disputer.type === 'for'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-500 bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-[var(--app-foreground)]">
-                  {disputer.type === 'against' ? 'Against' : disputer.type === 'for' ? 'For' : 'Creator'}
-                </span>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  disputer.status === 'accepted' 
-                    ? 'bg-green-100 text-green-800' 
-                    : disputer.status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {disputer.status}
-                </span>
-              </div>
-              <p className="text-sm text-[var(--app-foreground)] font-mono mb-1">
-                {disputer.address}
-              </p>
-              <p className="text-sm text-[var(--app-foreground-muted)] line-clamp-2">
-                {disputer.pointOfView}
+      {/* Disputers' Points of View */}
+      {dispute.disputer1 && (
+        <div className="space-y-2 mb-4">
+          <div className="border-l-4 border-red-500 pl-3">
+            <p className="text-sm text-[var(--app-foreground-muted)]">
+              <span className="font-medium">{dispute.disputer1.address}</span>: {dispute.disputer1.pointOfView}
+            </p>
+          </div>
+          {dispute.disputer2 && (
+            <div className="border-l-4 border-blue-500 pl-3">
+              <p className="text-sm text-[var(--app-foreground-muted)]">
+                <span className="font-medium">{dispute.disputer2.address}</span>: {dispute.disputer2.pointOfView}
               </p>
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -172,6 +177,7 @@ export function DisputeCard({ dispute, onClick }: DisputeCardProps) {
                 e.stopPropagation();
                 handleUpvote();
               }}
+              disabled={isVotePending || isVoteLoading}
               className={`p-2 rounded-lg transition-colors ${
                 upvoted ? "bg-green-100 text-green-600" : "hover:bg-[var(--app-accent-light)]"
               }`}
@@ -189,6 +195,7 @@ export function DisputeCard({ dispute, onClick }: DisputeCardProps) {
                 e.stopPropagation();
                 handleDownvote();
               }}
+              disabled={isVotePending || isVoteLoading}
               className={`p-2 rounded-lg transition-colors ${
                 downvoted ? "bg-red-100 text-red-600" : "hover:bg-[var(--app-accent-light)]"
               }`}
@@ -210,18 +217,19 @@ export function DisputeCard({ dispute, onClick }: DisputeCardProps) {
             <span>{dispute.comments}</span>
           </div>
         </div>
-        
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            handleBookmark();
-          }}
-          className={`p-2 rounded-lg transition-colors ${
-            bookmarked ? "bg-[var(--app-accent-light)] text-[var(--app-accent)]" : "hover:bg-[var(--app-accent-light)]"
-          }`}
-        >
-          <Icon name="bookmark" size="sm" />
-        </button>
+
+        {/* Transaction Status */}
+        {(isVotePending || isVoteLoading) && (
+          <div className="text-xs text-blue-600">
+            <Icon name="loader" size="sm" className="animate-spin mr-1" />
+            Voting...
+          </div>
+        )}
+        {isVoteSuccess && (
+          <div className="text-xs text-green-600">
+            ✓ Vote recorded
+          </div>
+        )}
       </div>
     </div>
   );
