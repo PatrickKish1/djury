@@ -82,7 +82,7 @@ npm run dev
 ### MiniKit Provider
 The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
 - OnchainKit integration
-- Access to Frames context
+- Access to Frame context
 - Sets up Wagmi Connectors
 - Sets up Frame SDK listeners
 - Applies Safe Area Insets
