@@ -361,7 +361,7 @@ Resources:
               <Button
                 onClick={handleSignInWithEthereum}
                 disabled={isSigningIn}
-                className="bg-primary hover:bg-primary/40 text-white w-full"
+                className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white w-full"
               >
                 {isSigningIn ? (
                   <div className="flex items-center justify-center">
@@ -420,7 +420,7 @@ Resources:
                   showNotificationMessage("Address copied to clipboard!", "success");
                 }
               }}
-              className="bg-primary hover:bg-primary/40 hover:text-white text-[var(--app-accent)] text-sm"
+              className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white text-sm"
             >
               Copy Address
             </Button>
@@ -429,7 +429,7 @@ Resources:
                 const url = `https://sepolia.basescan.org/address/${userProfile.address}`;
                 window.open(url, '_blank');
               }}
-              className="bg-primary hover:bg-primary/40 hover:text-white text-[var(--app-accent)] text-sm"
+              className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white text-sm"
             >
               View on BaseScan
             </Button>
@@ -438,27 +438,27 @@ Resources:
       </div>
 
       {/* Stats */}
-      <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6">
-        <h2 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">Statistics</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-[var(--app-accent)]">{userProfile.stats.disputesCreated}</div>
-            <div className="text-sm text-[var(--app-foreground-muted)] break-words">Disputes Created</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-[var(--app-accent)]">{userProfile.stats.disputesParticipated}</div>
-            <div className="text-sm text-[var(--app-foreground-muted)] break-words">Participated</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{userProfile.stats.totalUpvotes}</div>
-            <div className="text-sm text-[var(--app-foreground-muted)] break-words">Upvotes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-[var(--app-accent)]">{userProfile.stats.reputation}%</div>
-            <div className="text-sm text-[var(--app-foreground-muted)] break-words">Reputation</div>
+        <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6">
+          <h2 className="text-xl font-semibold text-[var(--app-foreground)] mb-4">Statistics</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--app-accent)]">{userProfile.stats.disputesCreated}</div>
+              <div className="text-sm text-[var(--app-foreground-muted)] break-words">Disputes Created</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--app-accent)]">{userProfile.stats.disputesParticipated}</div>
+              <div className="text-sm text-[var(--app-foreground-muted)] break-words">Participated</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{userProfile.stats.totalUpvotes}</div>
+              <div className="text-sm text-[var(--app-foreground-muted)] break-words">Upvotes</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--app-accent)]">{userProfile.stats.reputation}%</div>
+              <div className="text-sm text-[var(--app-foreground-muted)] break-words">Reputation</div>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Social Links */}
       <div className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-6">

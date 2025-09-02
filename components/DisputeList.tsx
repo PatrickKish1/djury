@@ -133,7 +133,7 @@ export function DisputeList() {
       ) : (
         <div className="grid gap-4">
           {disputes.map((dispute) => (
-            <Card key={dispute.id} className="hover:shadow-md transition-shadow">
+            <Card key={dispute.id} className="hover:shadow-md transition-all duration-200 hover:scale-102 cursor-pointer">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
