@@ -17,6 +17,7 @@ import { disputeContract } from '../lib/contracts';
 import { ContractActions } from './ContractActions';
 import BettingIntegration from '../integration/bettingIntegration';
 import { createPublicClient, http } from 'viem';
+import { fetchDisputesByCreator, createDispute, buildInviteUrl, type Dispute as JsonDispute } from '../lib/disputes';
 
 // Create a public client for reading from Base network
 const client = createPublicClient({
@@ -133,6 +134,58 @@ export function DisputesManagement() {
       toast.error('Transaction failed. Please try again.');
     }
   }, [writeError, receiptError]);
+
+  // State for real dispute data
+  const [realUserDisputes, setRealUserDisputes] = useState<Dispute[]>([]);
+  const [isLoadingDisputes, setIsLoadingDisputes] = useState(false);
+
+  // Fetch real dispute data when user disputes change
+  useEffect(() => {
+    const loadRealDisputes = async () => {
+      if (!address) {
+        setRealUserDisputes([]);
+        return;
+      }
+      setIsLoadingDisputes(true);
+      try {
+        const items = await fetchDisputesByCreator(address as `0x${string}`);
+        const mapped: Dispute[] = items.map((d: JsonDispute) => ({
+          id: d.id,
+          topic: d.title,
+          type: d.type,
+          creator: d.creator,
+          status: 'active',
+          inviteUrl: buildInviteUrl(d.id, address as `0x${string}`),
+          disputer1: {
+            address: d.creator,
+            pointOfView: d.description,
+            status: 'accepted',
+          },
+          disputer2: d.type === 'opponent'
+            ? {
+                address: d.opponentAddresses[0] ?? '',
+                pointOfView: "",
+                status: 'pending',
+              }
+            : undefined,
+          timestamp: new Date(d.createdAt).toLocaleString(),
+          upvotes: d.upvotes,
+          downvotes: d.downvotes,
+          reposts: 0,
+          comments: 0,
+          bookmarked: false,
+        }));
+        setRealUserDisputes(mapped);
+      } catch (error) {
+        console.error('Error loading real disputes:', error);
+        setRealUserDisputes([]);
+      } finally {
+        setIsLoadingDisputes(false);
+      }
+    };
+
+    loadRealDisputes();
+  }, [address]);
 
   // Show loading state while connecting
   if (isConnecting) {
@@ -251,37 +304,8 @@ export function DisputesManagement() {
     }
   };
 
-  // State for real dispute data
-  const [realUserDisputes, setRealUserDisputes] = useState<Dispute[]>([]);
-  const [isLoadingDisputes, setIsLoadingDisputes] = useState(false);
-
-  // Fetch real dispute data when user disputes change
-  useEffect(() => {
-    const loadRealDisputes = async () => {
-      if (userDisputesFromContract && userDisputesFromContract.length > 0) {
-        setIsLoadingDisputes(true);
-        try {
-          const disputes = await Promise.all(
-            userDisputesFromContract.map((id: bigint) => fetchDisputeDetails(Number(id)))
-          );
-          const validDisputes = disputes.filter((d: Dispute | null): d is Dispute => d !== null);
-          setRealUserDisputes(validDisputes);
-        } catch (error) {
-          console.error('Error loading real disputes:', error);
-          setRealUserDisputes([]);
-        } finally {
-          setIsLoadingDisputes(false);
-        }
-      } else {
-        setRealUserDisputes([]);
-      }
-    };
-
-    loadRealDisputes();
-  }, [userDisputesFromContract]);
-
-  // Use real disputes if available, otherwise fall back to mock data
-  const displayDisputes = realUserDisputes.length > 0 ? realUserDisputes : userDisputes;
+  // Use only JSON-backed disputes (no mock fallback)
+  const displayDisputes = realUserDisputes;
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -334,27 +358,17 @@ export function DisputesManagement() {
     window.location.href = `/disputes/${disputeId}`;
   };
 
-    const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation checks
+
     if (!isConnected || !address) {
       toast.error("Please connect your wallet to create a dispute.");
       return;
     }
-
-    // Check if user is on Base network
-    if (chainId !== base.id) {
-      toast.warning(`You're currently on ${getNetworkName(chainId)}. For best experience, consider switching to Base network.`);
-      // Don't block the user, just warn them
-    }
-
     if (!formData.topic.trim()) {
       toast.error("Please enter a dispute topic.");
       return;
     }
-
-    // Validate opponent addresses if opponent type
     if (disputeType === 'opponent') {
       const validAddresses = formData.opponentAddresses.filter(addr => addr.trim() !== "");
       if (validAddresses.length === 0) {
@@ -364,32 +378,32 @@ export function DisputesManagement() {
     }
 
     try {
-      // Create dispute on the smart contract
-      const args = [{
-        respondent: disputeType === 'opponent' ? formData.opponentAddresses[0] as `0x${string}` : address as `0x${string}`,
+      const payload = {
+        creator: address as `0x${string}`,
         title: formData.topic,
-        description: formData.topic, // Using topic as description for now
-        category: 0, // General category
-        priority: parseInt(formData.priority, 10), // Use priority from form
-        requiresEscrow: disputeType === 'opponent', // Require escrow for opponent disputes
-        escrowAmount: disputeType === 'opponent' ? BigInt(Math.floor(parseFloat(formData.escrowAmount) * 10 ** 18)) : BigInt(0), // Use escrow amount from form
-        customPeriod: BigInt(0), // Use default period
-        evidenceDescriptions: [],
-        evidenceHashes: [],
-        evidenceSupportsCreator: []
-      }];
+        description: formData.topic,
+        type: disputeType,
+        opponentAddresses: disputeType === 'opponent' ? formData.opponentAddresses as `0x${string}`[] : [],
+        priority: parseInt(formData.priority, 10) as 0 | 1 | 2,
+        escrowAmount: disputeType === 'opponent' ? (Math.floor(parseFloat(formData.escrowAmount) * 1e18)).toString() : '0',
+      };
 
-      console.log('Creating dispute with args:', args);
-      console.log('Contract address:', disputeContract.address);
+      const created = await createDispute(payload);
+      toast.success('Dispute created successfully!');
 
-      writeContract({
-        ...disputeContract,
-        functionName: 'createDispute',
-        args,
-        value: disputeType === 'opponent' ? BigInt(Math.floor(parseFloat(formData.escrowAmount) * 10 ** 18)) : BigInt(0), // Send escrow amount if opponent dispute
+      const inviteUrl = buildInviteUrl(created.id, address as `0x${string}`);
+      await copyInviteLink(inviteUrl);
+
+      setActiveView("my-disputes");
+      setFormData({
+        topic: "",
+        type: 'general',
+        opponentAddresses: [""],
+        opponentEmails: [""],
+        priority: "0",
+        escrowAmount: "0.01"
       });
-
-      toast.success('Creating dispute on blockchain...');
+      setShowCreateForm(false);
     } catch (error) {
       console.error('Error creating dispute:', error);
       toast.error('Failed to create dispute. Please try again.');
