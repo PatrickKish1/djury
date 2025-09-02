@@ -425,7 +425,7 @@ export function DisputesManagement() {
         >
           My Disputes
         </button>
-        <button
+        {/* <button
           onClick={() => setActiveView("contract-actions")}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
             activeView === "contract-actions"
@@ -444,7 +444,7 @@ export function DisputesManagement() {
           }`}
         >
           Betting
-        </button>
+        </button> */}
       </div>
 
       {/* Content */}
@@ -672,13 +672,6 @@ export function DisputesManagement() {
                       )}
                     </div>
                   )}
-
-                  {/* Debug Info */}
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <div>Wallet: {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}</div>
-                    <div>Network: {getNetworkName(chainId)} {chainId === base.id ? '✅' : '⚠️'}</div>
-                    <div>Contract: {disputeContract.address}</div>
-                  </div>
                 </form>
               )}
             </div>
@@ -738,7 +731,7 @@ export function DisputesManagement() {
                           </div>
                           <Button
                             onClick={() => copyInviteLink(dispute.inviteUrl!)}
-                            className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white text-sm px-3 py-1"
+                            className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white text-sm px-4 text-nowrap scale-90 py-1"
                           >
                             Copy Link
                           </Button>

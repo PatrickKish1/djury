@@ -361,7 +361,7 @@ Resources:
               <Button
                 onClick={handleSignInWithEthereum}
                 disabled={isSigningIn}
-                className="bg-[var(--app-accent)] hover:bg-[var(--app-accent-hover)] text-white w-full"
+                className="bg-primary hover:bg-primary/40 text-white w-full"
               >
                 {isSigningIn ? (
                   <div className="flex items-center justify-center">
@@ -420,7 +420,7 @@ Resources:
                   showNotificationMessage("Address copied to clipboard!", "success");
                 }
               }}
-              className="bg-[var(--app-accent-light)] hover:bg-[var(--app-accent)] hover:text-white text-[var(--app-accent)] text-sm"
+              className="bg-primary hover:bg-primary/40 hover:text-white text-[var(--app-accent)] text-sm"
             >
               Copy Address
             </Button>
@@ -429,7 +429,7 @@ Resources:
                 const url = `https://sepolia.basescan.org/address/${userProfile.address}`;
                 window.open(url, '_blank');
               }}
-              className="bg-[var(--app-accent-light)] hover:bg-[var(--app-accent)] hover:text-white text-[var(--app-accent)] text-sm"
+              className="bg-primary hover:bg-primary/40 hover:text-white text-[var(--app-accent)] text-sm"
             >
               View on BaseScan
             </Button>

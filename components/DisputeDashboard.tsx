@@ -57,8 +57,8 @@ export function DisputeDashboard() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="create">Create</TabsTrigger>
           <TabsTrigger value="view">View</TabsTrigger>
-          <TabsTrigger value="actions">Actions</TabsTrigger>
-          <TabsTrigger value="betting">Betting</TabsTrigger>
+          {/* <TabsTrigger value="actions">Actions</TabsTrigger>
+          <TabsTrigger value="betting">Betting</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="create" className="space-y-4">

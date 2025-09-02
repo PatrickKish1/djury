@@ -221,7 +221,7 @@ export function DisputeCard({ dispute, onClick }: DisputeCardProps) {
         {/* Transaction Status */}
         {(isVotePending || isVoteLoading) && (
           <div className="text-xs text-blue-600">
-            <Icon name="loader" size="sm" className="animate-spin mr-1" />
+            <Icon name="refresh-cw" size="sm" className="animate-spin mr-1" />
             Voting...
           </div>
         )}
