@@ -32,6 +32,7 @@ import { ProfileComponent } from "../components/ProfileComponent";
 import { GlobalTabs } from "../components/GlobalTabs";
 import Image from "next/image";
 import { NetworkSwitcher } from "@/components/NetworkSwitcher";
+import { useAccount } from "wagmi";
 
 
 export default function App() {
@@ -40,7 +41,8 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeView, setActiveView] = useState<"home" | "disputes" | "search" | "profile">("home");
   const router = useRouter();
-  const [showModal, setShowModal] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const { isConnected } = useAccount();
   const addFrame = useAddFrame();
   const openUrl = useOpenUrl();
 
@@ -68,6 +70,10 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, []);
+
+  useEffect(() => {
+    setShowModal(!isConnected);
+  }, [isConnected]);
 
   const handleAddFrame = useCallback(async () => {
     const frameAdded = await addFrame();
@@ -102,103 +108,135 @@ export default function App() {
   }, [context, frameAdded, handleAddFrame]);
 
   // Mock disputes data - in a real app, this would come from an API
-  const disputes = [
-    {
-      id: 1,
-      topic: "Ghana jollof is the best",
-      type: 'opponent' as const,
-      creator: "0x1234...5678",
-      status: 'active' as const,
-      disputer1: {
-        address: "0x1234...5678",
-        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
-        status: 'accepted' as const
-      },
-      disputer2: {
-        address: "0x8765...4321",
-        pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
-        status: 'accepted' as const
-      },
-      timestamp: "2h ago",
-      upvotes: 24,
-      downvotes: 8,
-      reposts: 12,
-      comments: 18,
-      bookmarked: false
-    },
-    {
-      id: 2,
-      topic: "MoMo charges is a way of supporting telcos and government",
-      type: 'general' as const,
-      creator: "0x1234...5678",
-      status: 'active' as const,
-      timestamp: "2h ago",
-      upvotes: 24,
-      downvotes: 8,
-      reposts: 12,
-      comments: 18,
-      bookmarked: false
-    },
-    {
-      id: 3,
-      topic: "One Piece is a really great anime",
-      type: 'opponent' as const,
-      creator: "0x1234...5678",
-      status: 'active' as const,
-      disputer1: {
-        address: "0x1234...5678",
-        pointOfView: "One Piece has terrible pacing and filler episodes that make it unwatchable. The story drags on unnecessarily and the animation quality is inconsistent. Many episodes feel like they're just wasting time with unnecessary dialogue and repetitive scenes. The character designs are also quite strange and off-putting to many viewers.",
-        status: 'accepted' as const
-      },
-      disputer2: {
-        address: "0x8765...4321",
-        pointOfView: "One Piece is a masterpiece with deep storytelling, complex characters, and meaningful themes. The pacing allows for proper character development and world-building. The filler episodes are actually quite entertaining and add depth to the story. The animation quality has improved significantly over time, and the character designs are unique and memorable.",
-        status: 'accepted' as const
-      },
-      timestamp: "6h ago",
-      upvotes: 31,
-      downvotes: 15,
-      reposts: 23,
-      comments: 28,
-      bookmarked: false
-    },
-    {
-      id: 4,
-      topic: "React is better than Vue for enterprise applications",
-      type: 'opponent' as const,
-      creator: "0x1111...2222",
-      status: 'active' as const,
-      disputer1: {
-        address: "0x1111...2222",
-        pointOfView: "React's ecosystem is more mature, has better TypeScript support, and larger community. It's the industry standard for enterprise applications with proven scalability and performance. The learning curve is worth it for the flexibility and power it provides.",
-        status: 'accepted' as const
-      },
-      disputer2: {
-        address: "0x3333...4444",
-        pointOfView: "Vue is more intuitive, has better performance, and cleaner syntax. It's easier to learn and maintain for teams, especially those new to frontend development. The documentation is excellent and the framework is more opinionated, leading to better consistency.",
-        status: 'accepted' as const
-      },
-      timestamp: "4h ago",
-      upvotes: 18,
-      downvotes: 5,
-      reposts: 7,
-      comments: 12,
-      bookmarked: true
-    },
-    {
-      id: 5,
-      topic: "Coffee is superior to tea",
-      type: 'general' as const,
-      creator: "0x5555...6666",
-      status: 'active' as const,
-      timestamp: "6h ago",
-      upvotes: 31,
-      downvotes: 15,
-      reposts: 23,
-      comments: 28,
-      bookmarked: false
-    }
-  ];
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [isLoadingDisputes, setIsLoadingDisputes] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoadingDisputes(true);
+      try {
+        const res = await fetch('/api/disputes', { cache: 'no-store' });
+        const json = await res.json();
+        if (res.ok && json?.success && Array.isArray(json.data) && json.data.length > 0) {
+          setDisputes(json.data);
+          return;
+        }
+      } catch {}
+      setDisputes([
+        {
+          id: 1,
+          topic: "Ghana jollof is the best",
+          type: 'opponent' as const,
+          creator: "0x1234...5678",
+          status: 'active' as const,
+          disputer1: {
+            address: "0x1234...5678",
+            pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
+            status: 'accepted' as const
+          },
+          disputer2: {
+            address: "0x8765...4321",
+            pointOfView: "Ghana jollof is the best because it is the most popular and most delicious.",
+            status: 'accepted' as const
+          },
+          timestamp: "2h ago",
+          upvotes: 24,
+          downvotes: 8,
+          reposts: 12,
+          comments: 18,
+          bookmarked: false
+        },
+        {
+          id: 2,
+          topic: "MoMo charges is a way of supporting telcos and government",
+          type: 'general' as const,
+          creator: "0x1234...5678",
+          status: 'active' as const,
+          timestamp: "2h ago",
+          upvotes: 24,
+          downvotes: 8,
+          reposts: 12,
+          comments: 18,
+          bookmarked: false
+        },
+        {
+          id: 3,
+          topic: "One Piece is a really great anime",
+          type: 'opponent' as const,
+          creator: "0x1234...5678",
+          status: 'active' as const,
+          disputer1: {
+            address: "0x1234...5678",
+            pointOfView: "One Piece has terrible pacing and filler episodes that make it unwatchable. The story drags on unnecessarily and the animation quality is inconsistent. Many episodes feel like they're just wasting time with unnecessary dialogue and repetitive scenes. The character designs are also quite strange and off-putting to many viewers.",
+            status: 'accepted' as const
+          },
+          disputer2: {
+            address: "0x8765...4321",
+            pointOfView: "One Piece is a masterpiece with deep storytelling, complex characters, and meaningful themes. The pacing allows for proper character development and world-building. The filler episodes are actually quite entertaining and add depth to the story. The animation quality has improved significantly over time, and the character designs are unique and memorable.",
+            status: 'accepted' as const
+          },
+          timestamp: "6h ago",
+          upvotes: 31,
+          downvotes: 15,
+          reposts: 23,
+          comments: 28,
+          bookmarked: false
+        },
+        {
+          id: 4,
+          topic: "React is better than Vue for enterprise applications",
+          type: 'opponent' as const,
+          creator: "0x1111...2222",
+          status: 'active' as const,
+          disputer1: {
+            address: "0x1111...2222",
+            pointOfView: "React's ecosystem is more mature, has better TypeScript support, and larger community. It's the industry standard for enterprise applications with proven scalability and performance. The learning curve is worth it for the flexibility and power it provides.",
+            status: 'accepted' as const
+          },
+          disputer2: {
+            address: "0x3333...4444",
+            pointOfView: "Vue is more intuitive, has better performance, and cleaner syntax. It's easier to learn and maintain for teams, especially those new to frontend development. The documentation is excellent and the framework is more opinionated, leading to better consistency.",
+            status: 'accepted' as const
+          },
+          timestamp: "4h ago",
+          upvotes: 18,
+          downvotes: 5,
+          reposts: 7,
+          comments: 12,
+          bookmarked: true
+        },
+        {
+          id: 5,
+          topic: "Coffee is superior to tea",
+          type: 'general' as const,
+          creator: "0x5555...6666",
+          status: 'active' as const,
+          timestamp: "6h ago",
+          upvotes: 31,
+          downvotes: 15,
+          reposts: 23,
+          comments: 28,
+          bookmarked: false
+        }
+      ]);
+    };
+    load();
+    setIsLoadingDisputes(false);
+  }, []);
+
+  // Auto-refresh disputes every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/disputes', { cache: 'no-store' });
+        const json = await res.json();
+        if (res.ok && json?.success && Array.isArray(json.data) && json.data.length > 0) {
+          setDisputes(json.data);
+        }
+      } catch {}
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDisputeClick = (disputeId: number) => {
     router.push(`/disputes/${disputeId}`);
@@ -258,13 +296,28 @@ export default function App() {
         <main className="flex-1 pb-20">
           {activeView === "home" && (
             <div className="space-y-4 animate-fade-in">
-              {disputes.map((dispute) => (
-                <DisputeCard 
-                  key={dispute.id} 
-                  dispute={dispute} 
-                  onClick={() => handleDisputeClick(dispute.id)}
-                />
-              ))}
+              {isLoadingDisputes ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--app-accent)] mx-auto mb-4"></div>
+                  <p className="text-[var(--app-foreground-muted)]">Loading disputes...</p>
+                </div>
+              ) : disputes.length > 0 ? (
+                disputes.map((dispute) => (
+                  <DisputeCard 
+                    key={dispute.id} 
+                    dispute={{
+                      ...dispute,
+                      topic: dispute.title || dispute.topic || 'Untitled Dispute',
+                      timestamp: dispute.createdAt ? new Date(dispute.createdAt).toLocaleString() : dispute.timestamp || 'Unknown time'
+                    }} 
+                    onClick={() => handleDisputeClick(dispute.id)}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-[var(--app-foreground-muted)]">No disputes found</p>
+                </div>
+              )}
             </div>
           )}
           {activeView === "disputes" && (

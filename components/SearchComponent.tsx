@@ -98,16 +98,36 @@ export function SearchComponent({ onDisputeClick }: SearchComponentProps) {
 
     setIsSearching(true);
     
-    // Simulate search delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Search live data from API
+      const res = await fetch('/api/disputes', { cache: 'no-store' });
+      const json = await res.json();
+      
+      if (res.ok && json?.success && Array.isArray(json.data)) {
+        const results = json.data.filter((dispute: any) => 
+          (dispute.title || dispute.topic || '').toLowerCase().includes(query.toLowerCase()) ||
+          (dispute.creator || '').toLowerCase().includes(query.toLowerCase()) ||
+          (dispute.description || '').toLowerCase().includes(query.toLowerCase())
+        );
+        setSearchResults(results);
+      } else {
+        // Fallback to mock data
+        const results = trendingDisputes.filter(dispute => 
+          dispute.topic.toLowerCase().includes(query.toLowerCase()) ||
+          dispute.creator.toLowerCase().includes(query.toLowerCase())
+        );
+        setSearchResults(results);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      // Fallback to mock data
+      const results = trendingDisputes.filter(dispute => 
+        dispute.topic.toLowerCase().includes(query.toLowerCase()) ||
+        dispute.creator.toLowerCase().includes(query.toLowerCase())
+      );
+      setSearchResults(results);
+    }
     
-    // Mock search results - in real app this would be API call
-    const results = trendingDisputes.filter(dispute => 
-      dispute.topic.toLowerCase().includes(query.toLowerCase()) ||
-      dispute.creator.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    setSearchResults(results);
     setIsSearching(false);
   };
 
@@ -162,7 +182,11 @@ export function SearchComponent({ onDisputeClick }: SearchComponentProps) {
               {searchResults.map((dispute) => (
                 <DisputeCard 
                   key={dispute.id} 
-                  dispute={dispute} 
+                  dispute={{
+                    ...dispute,
+                    topic: dispute.title || dispute.topic || 'Untitled Dispute',
+                    timestamp: dispute.createdAt ? new Date(dispute.createdAt).toLocaleString() : dispute.timestamp || 'Unknown time'
+                  }} 
                   onClick={() => onDisputeClick(dispute.id)}
                 />
               ))}

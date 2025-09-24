@@ -2,12 +2,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Icon } from "./DemoComponents";
 import { Button } from "./DemoComponents";
 import { DisputeCard } from "./DisputeCard";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useReadContract } from "wagmi";
-import { base } from "wagmi/chains";
+import { base, baseSepolia } from "wagmi/chains";
 import Image from "next/image";
 import { ConnectWallet, WalletDropdownDisconnect, WalletDropdown } from "@coinbase/onchainkit/wallet";
 import { Wallet } from "@coinbase/onchainkit/wallet";
@@ -19,15 +19,16 @@ import BettingIntegration from '../integration/bettingIntegration';
 import { createPublicClient, http } from 'viem';
 import { fetchDisputesByCreator, createDispute, buildInviteUrl, type Dispute as JsonDispute } from '../lib/disputes';
 
-// Create a public client for reading from Base network
+// Create a public client for reading from Base Sepolia network
 const client = createPublicClient({
-  chain: base,
+  chain: baseSepolia,
   transport: http(),
 });
 
 interface Dispute {
   id: number;
   topic: string;
+  title?: string;
   type: 'general' | 'opponent';
   creator: string;
   status: 'draft' | 'active' | 'completed';
@@ -48,6 +49,7 @@ interface Dispute {
     status: 'pending' | 'accepted' | 'declined';
   }[];
   timestamp: string;
+  createdAt?: string;
   upvotes: number;
   downvotes: number;
   reposts: number;
@@ -63,6 +65,7 @@ export function DisputesManagement() {
   const [disputeType, setDisputeType] = useState<'general' | 'opponent'>('general');
   const [formData, setFormData] = useState({
     topic: "",
+    description: "",
     type: 'general' as 'general' | 'opponent',
     opponentAddresses: [""],
     opponentEmails: [""],
@@ -73,6 +76,10 @@ export function DisputesManagement() {
   // Helper function to get network name
   const getNetworkName = (chainId: number) => {
     switch (chainId) {
+      case 8453:
+        return "Base Mainnet";
+      case 84532:
+        return "Base Sepolia";
       case base.id:
         return "Base Network";
       case 1:
@@ -94,6 +101,18 @@ export function DisputesManagement() {
     hash,
   });
 
+  // Debug: Log contract and network info
+  console.log('Contract config:', {
+    address: disputeContract.address,
+    chainId,
+    networkName: getNetworkName(chainId),
+    isConnected,
+    address: address
+  });
+
+  // Persistent toast handling for tx status
+  const pendingToastRef = useRef<string | number | undefined>(undefined);
+
   // Contract read hooks for fetching real dispute data
   const { data: disputeCounter } = useReadContract({
     ...disputeContract,
@@ -107,31 +126,75 @@ export function DisputesManagement() {
     query: { enabled: !!address }
   });
 
-  // Reset form when transaction is successful
+  // Handle successful transaction - mirror to Supabase/Pinata
   useEffect(() => {
-    if (isSuccess) {
-      toast.success('Dispute created successfully!');
-      setFormData({
-        topic: "",
-        type: 'general',
-        opponentAddresses: [""],
-        opponentEmails: [""],
-        priority: "0",
-        escrowAmount: "0.01"
-      });
-      setShowCreateForm(false);
-      // Switch to my-disputes tab to show the newly created dispute
-      setActiveView("my-disputes");
+    const mirrorAfterSuccess = async () => {
+      if (isSuccess && address) {
+        try {
+          // Get the on-chain dispute ID
+          let newId = 0;
+          try {
+            const counter = await client.readContract({
+              ...disputeContract,
+              functionName: 'disputeCounter',
+            });
+            newId = Number(counter);
+          } catch {}
+
+          const payload = {
+            id: newId > 0 ? newId : undefined,
+            creator: address as `0x${string}`,
+            title: formData.topic,
+            description: formData.description,
+            type: disputeType,
+            opponentAddresses: disputeType === 'opponent' ? formData.opponentAddresses as `0x${string}`[] : [],
+            priority: parseInt(formData.priority, 10) as 0 | 1 | 2,
+            escrowAmount: disputeType === 'opponent' && parseFloat(formData.escrowAmount) > 0 ? 
+              BigInt(Math.floor(parseFloat(formData.escrowAmount) * 1e18)).toString() : '0',
+          };
+
+          const created = await createDispute(payload);
+          toast.success('Dispute created on-chain and mirrored!', { duration: 5000 });
+
+          const inviteUrl = buildInviteUrl(created.id, address as `0x${string}`);
+          await copyInviteLink(inviteUrl);
+
+          setFormData({
+            topic: "",
+            description: "",
+            type: 'general',
+            opponentAddresses: [""],
+            opponentEmails: [""],
+            priority: "0",
+            escrowAmount: "0.01"
+          });
+          setShowCreateForm(false);
+          setActiveView("my-disputes");
+        } catch (error) {
+          console.error('Error mirroring dispute:', error);
+          toast.error('On-chain success, but failed to mirror. Please retry.', { duration: 5000 });
+        }
+      }
+    };
+    mirrorAfterSuccess();
+  }, [isSuccess, address, formData, disputeType]);
+
+  // Show loading toast when transaction is pending
+  useEffect(() => {
+    if (isPending && !pendingToastRef.current) {
+      pendingToastRef.current = toast.loading('Transaction submitted! Waiting for confirmation...');
     }
-  }, [isSuccess]);
+  }, [isPending]);
 
   // Handle transaction errors
   useEffect(() => {
     if (writeError) {
-      toast.error('Failed to create dispute. Please try again.');
+      console.error('Write error:', writeError);
+      toast.error(`Failed to create dispute: ${writeError.message || writeError.shortMessage || 'Unknown error'}`);
     }
     if (receiptError) {
-      toast.error('Transaction failed. Please try again.');
+      console.error('Receipt error:', receiptError);
+      toast.error(`Transaction failed: ${receiptError.message || receiptError.shortMessage || 'Unknown error'}`);
     }
   }, [writeError, receiptError]);
 
@@ -353,6 +416,68 @@ export function DisputesManagement() {
     }
   };
 
+  const deleteDispute = async (disputeId: number) => {
+    if (!address) return;
+    
+    try {
+      const response = await fetch('/api/disputes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disputeId, creator: address }),
+      });
+      
+      if (response.ok) {
+        toast.success('Dispute deleted successfully', { duration: 5000 });
+        // Refresh disputes list
+        const loadRealDisputes = async () => {
+          if (!address) return;
+          setIsLoadingDisputes(true);
+          try {
+            const items = await fetchDisputesByCreator(address as `0x${string}`);
+            const mapped: Dispute[] = items.map((d: JsonDispute) => ({
+              id: d.id,
+              topic: d.title,
+              type: d.type,
+              creator: d.creator,
+              status: 'active',
+              inviteUrl: buildInviteUrl(d.id, address as `0x${string}`),
+              disputer1: {
+                address: d.creator,
+                pointOfView: d.description,
+                status: 'accepted',
+              },
+              disputer2: d.type === 'opponent'
+                ? {
+                    address: d.opponentAddresses[0] ?? '',
+                    pointOfView: "",
+                    status: 'pending',
+                  }
+                : undefined,
+              timestamp: new Date(d.createdAt).toLocaleString(),
+              upvotes: d.upvotes,
+              downvotes: d.downvotes,
+              reposts: 0,
+              comments: 0,
+              bookmarked: false,
+            }));
+            setRealUserDisputes(mapped);
+          } catch (error) {
+            console.error('Error loading real disputes:', error);
+            setRealUserDisputes([]);
+          } finally {
+            setIsLoadingDisputes(false);
+          }
+        };
+        loadRealDisputes();
+      } else {
+        toast.error('Failed to delete dispute', { duration: 5000 });
+      }
+    } catch (error) {
+      console.error('Error deleting dispute:', error);
+      toast.error('Failed to delete dispute', { duration: 5000 });
+    }
+  };
+
   const handleDisputeClick = (disputeId: number) => {
     // Navigate to dispute detail page
     window.location.href = `/disputes/${disputeId}`;
@@ -369,6 +494,10 @@ export function DisputesManagement() {
       toast.error("Please enter a dispute topic.");
       return;
     }
+    if (!formData.description.trim()) {
+      toast.error("Please enter a dispute description.");
+      return;
+    }
     if (disputeType === 'opponent') {
       const validAddresses = formData.opponentAddresses.filter(addr => addr.trim() !== "");
       if (validAddresses.length === 0) {
@@ -378,35 +507,58 @@ export function DisputesManagement() {
     }
 
     try {
-      const payload = {
-        creator: address as `0x${string}`,
-        title: formData.topic,
-        description: formData.topic,
-        type: disputeType,
-        opponentAddresses: disputeType === 'opponent' ? formData.opponentAddresses as `0x${string}`[] : [],
-        priority: parseInt(formData.priority, 10) as 0 | 1 | 2,
-        escrowAmount: disputeType === 'opponent' ? (Math.floor(parseFloat(formData.escrowAmount) * 1e18)).toString() : '0',
-      };
+      // 1) Trigger on-chain create first
+      const respondent = (disputeType === 'opponent' ? (formData.opponentAddresses[0] || '0x0000000000000000000000000000000000000000') : '0x0000000000000000000000000000000000000000') as `0x${string}`;
+      const title = formData.topic;
+      const description = formData.description;
+      const category = 0; // map your UI category if available
+      const priority = parseInt(formData.priority, 10) as 0 | 1 | 2;
+      const requiresEscrow = disputeType === 'opponent' && parseFloat(formData.escrowAmount) > 0;
+      const escrowAmount = requiresEscrow ? BigInt(Math.floor(parseFloat(formData.escrowAmount) * 1e18)) : 0n;
+      const customPeriod = 0n;
+      const evidenceDescriptions: string[] = [];
+      const evidenceHashes: string[] = [];
+      const evidenceSupportsCreator: boolean[] = [];
 
-      const created = await createDispute(payload);
-      toast.success('Dispute created successfully!');
-
-      const inviteUrl = buildInviteUrl(created.id, address as `0x${string}`);
-      await copyInviteLink(inviteUrl);
-
-      setActiveView("my-disputes");
-      setFormData({
-        topic: "",
-        type: 'general',
-        opponentAddresses: [""],
-        opponentEmails: [""],
-        priority: "0",
-        escrowAmount: "0.01"
+      // Debug: Log the parameters being sent to the contract
+      console.log('Contract parameters:', {
+        contractAddress: disputeContract.address,
+        respondent,
+        title,
+        description,
+        category,
+        priority,
+        requiresEscrow,
+        escrowAmount: escrowAmount.toString(),
+        customPeriod: customPeriod.toString(),
+        evidenceDescriptions,
+        evidenceHashes,
+        evidenceSupportsCreator,
       });
-      setShowCreateForm(false);
+
+      // Trigger the contract write (this opens wallet)
+      writeContract({
+        ...disputeContract,
+        functionName: 'createDispute',
+        args: [
+          {
+            respondent,
+            title,
+            description,
+            category,
+            priority,
+            requiresEscrow,
+            escrowAmount,
+            customPeriod,
+            evidenceDescriptions,
+            evidenceHashes,
+            evidenceSupportsCreator,
+          }
+        ],
+      });
     } catch (error) {
       console.error('Error creating dispute:', error);
-      toast.error('Failed to create dispute. Please try again.');
+      toast.error(`Failed to create dispute: ${error instanceof Error ? error.message : 'Unknown error'}`, { duration: 5000 });
     }
   };
 
@@ -560,6 +712,21 @@ export function DisputesManagement() {
                     />
                   </div>
 
+                  {/* Dispute Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
+                      Your Point of View *
+                    </label>
+                    <textarea
+                      required
+                      value={formData.description}
+                      onChange={(e) => handleInputChange("description", e.target.value)}
+                      placeholder="Explain your position and reasoning..."
+                      rows={4}
+                      className="w-full px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] resize-none"
+                    />
+                  </div>
+
                   {/* Priority Selection */}
                   <div>
                     <label className="block text-sm font-medium text-[var(--app-foreground)] mb-2">
@@ -667,10 +834,13 @@ export function DisputesManagement() {
                     </Button>
                   </div>
 
-                  {/* Transaction Status */}
-                  {isPending && (
+                  {/* Transaction Status - Persistent */}
+                  {(isPending || isLoading) && (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">Transaction submitted! Waiting for confirmation...</p>
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <p className="text-sm text-blue-800">Transaction submitted! Waiting for confirmation...</p>
+                      </div>
                     </div>
                   )}
 
@@ -684,6 +854,12 @@ export function DisputesManagement() {
                           </a>
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {(writeError || receiptError) && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">Transaction failed. Please try again.</p>
                     </div>
                   )}
                 </form>
@@ -727,11 +903,40 @@ export function DisputesManagement() {
               </h3>
               <div className="space-y-4">
                 {displayDisputes.map((dispute) => (
-                  <div key={dispute.id} className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4">
+                    <div key={dispute.id} className="bg-[var(--app-card-bg)] backdrop-blur-md rounded-xl shadow-lg border border-[var(--app-card-border)] p-4">
                     <DisputeCard 
-                      dispute={dispute} 
+                      dispute={{
+                        ...dispute,
+                        topic: (dispute as any).title || dispute.topic || 'Untitled Dispute',
+                        timestamp: (dispute as any).createdAt ? new Date((dispute as any).createdAt).toLocaleString() : dispute.timestamp || 'Unknown time'
+                      }} 
                       onClick={() => handleDisputeClick(dispute.id)}
                     />
+                    
+                    {/* Action Buttons */}
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDispute(dispute.id);
+                          }}
+                          className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      {hash && (
+                        <a 
+                          href={`https://sepolia.basescan.org/tx/${hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          View on BaseScan
+                        </a>
+                      )}
+                    </div>
                     
                     {/* Invite Link for Opponent Disputes */}
                     {dispute.type === 'opponent' && dispute.inviteUrl && (

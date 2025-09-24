@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { retry } from '@/lib/utils';
 
 type DisputeType = 'general' | 'opponent';
 
@@ -55,6 +56,31 @@ async function writeDisputes(data: DisputesFile): Promise<void> {
 
 export async function GET() {
   try {
+    // Try Supabase first
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const url = `${SUPABASE_URL}/rest/v1/disputes?select=*`;
+        const res = await retry(() => fetch(url, {
+          headers: {
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+          },
+          cache: 'no-store',
+        }));
+        if (res.ok) {
+          const rows = await res.json();
+          if (Array.isArray(rows) && rows.length > 0) {
+            const items = rows.sort((a: any, b: any) => (b.id ?? 0) - (a.id ?? 0));
+            return NextResponse.json({ success: true, data: items });
+          }
+        }
+      } catch {
+        // fall back
+      }
+    }
+
     const store = await readDisputes();
     const items = [...store.items].sort((a, b) => b.id - a.id);
     return NextResponse.json({ success: true, data: items });

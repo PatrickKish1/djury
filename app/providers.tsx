@@ -8,21 +8,21 @@ import { WagmiProvider, createConfig, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Create wagmi config
-// base sepolia
-const config = createConfig({
-  chains: [baseSepolia],
-  transports: {
-    [baseSepolia.id]: http(),
-  },
-});
-
-// base
+// base mainnet
 // const config = createConfig({
 //   chains: [base],
 //   transports: {
 //     [base.id]: http(),
 //   },
 // });
+
+// base sepolia (testnet)
+const config = createConfig({
+  chains: [baseSepolia],
+  transports: {
+    [baseSepolia.id]: http(),
+  },
+});
 
 // kairos
 // const config = createConfig({
@@ -40,9 +40,9 @@ export function Providers(props: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <MiniKitProvider
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-          chain={baseSepolia}
-          // chain={kairos}
           // chain={base}
+          // chain={kairos}
+          chain={baseSepolia}
           config={{
             appearance: {
               mode: "auto",

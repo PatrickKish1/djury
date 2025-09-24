@@ -1,6 +1,7 @@
 export type DisputeType = 'general' | 'opponent';
 
 export interface DisputeInput {
+  id?: number;
   creator: `0x${string}`;
   title: string;
   description?: string;

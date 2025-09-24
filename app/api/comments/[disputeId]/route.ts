@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { mirrorJson } from '@/lib/storage';
 
 // Types for comments
 interface Comment {
@@ -56,6 +57,24 @@ async function writeComments(disputeId: string, data: CommentsData): Promise<voi
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
+// Helper to check if an address is a disputer (creator or invited opponent)
+async function isAuthorizedDisputer(disputeId: string, address: string): Promise<boolean> {
+  try {
+    const disputesPath = path.join(process.cwd(), 'data', 'disputes', 'disputes.json');
+    const raw = await fs.readFile(disputesPath, 'utf-8');
+    const store = JSON.parse(raw) as { items: Array<{ id: number; creator: string; opponentAddresses?: string[] }> };
+    const numericId = Number(disputeId);
+    const dispute = store.items.find((d) => d.id === numericId);
+    if (!dispute) return false;
+    const authorLc = address.toLowerCase();
+    if (dispute.creator?.toLowerCase() === authorLc) return true;
+    const opps = dispute.opponentAddresses || [];
+    return opps.some((o) => (o || '').toLowerCase() === authorLc);
+  } catch {
+    return false;
+  }
+}
+
 // GET: Retrieve comments for a dispute
 export async function GET(
   request: NextRequest,
@@ -103,6 +122,17 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Enforce permissions: only creator or invited opponents can post as 'disputers'
+    if (type === 'disputers') {
+      const allowed = await isAuthorizedDisputer(disputeId, author);
+      if (!allowed) {
+        return NextResponse.json(
+          { success: false, error: 'Not allowed to comment in disputers section' },
+          { status: 403 }
+        );
+      }
+    }
     
     // Read existing comments
     const existingComments = await readComments(disputeId);
@@ -125,13 +155,33 @@ export async function POST(
       existingComments.users.push(newComment);
     }
     
-    // Write updated comments to file
+    // Write updated comments to file (legacy local dev persistence)
     await writeComments(disputeId, existingComments);
-    
-    return NextResponse.json({
-      success: true,
-      data: newComment
+
+    // Mirror to Supabase and Pinata
+    const mirrorPayload = {
+      dispute_id: disputeId,
+      comment_id: newComment.id,
+      author: newComment.author,
+      content: newComment.content,
+      type: newComment.type,
+      timestamp: newComment.timestamp,
+      upvotes: newComment.upvotes,
+      downvotes: newComment.downvotes,
+    };
+    const mirror = await mirrorJson({
+      table: 'comments',
+      data: mirrorPayload,
+      targets: { supabase: true, pinata: true },
+      pinataOptions: {
+        name: `comment-${disputeId}-${newComment.id}.json`,
+        keyvalues: { disputeId, commentId: newComment.id, type: newComment.type },
+      },
     });
+    // Attach mirror result for observability (non-fatal if one target failed)
+    const meta = { mirror };
+    
+    return NextResponse.json({ success: true, data: newComment, meta });
   } catch (error) {
     console.error('Error adding comment:', error);
     return NextResponse.json(

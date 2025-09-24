@@ -1,112 +1,242 @@
-# MiniKit Template
+# DJury - Decentralized Social Media Platform
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-onchain --mini`](), configured with:
+A decentralized social media platform built with Next.js, Wagmi, and OnchainKit that enables users to create, participate in, and resolve disputes through blockchain technology.
 
-- [MiniKit](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit](https://www.base.org/builders/onchainkit)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Next.js](https://nextjs.org/docs)
+## 🚀 Features
 
-## Getting Started
+### Core Functionality
+- **Dispute Creation**: Create general or opponent-based disputes with escrow support
+- **Network Switching**: Switch between Base, Ethereum, and Polygon networks
+- **Wallet Integration**: Connect with Coinbase Wallet and other Web3 wallets
+- **Real-time Data**: JSON-backed storage system for disputes and comments
+- **Invite System**: Share dispute links with specific wallet addresses
+- **Comment System**: Participate in dispute discussions with voting
 
-1. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
-# or
-bun install
+### Dispute Types
+- **General Disputes**: Open discussions on any topic
+- **Opponent Disputes**: Structured debates between specific parties with escrow
+
+### Blockchain Integration
+- Smart contract integration for dispute resolution
+- Multi-network support (Base, Ethereum, Polygon)
+- Escrow functionality for opponent disputes
+- Voting and evidence submission
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14, React, TypeScript
+- **Styling**: Tailwind CSS, CSS Variables
+- **Blockchain**: Wagmi, Viem, OnchainKit
+- **Wallet**: Coinbase Wallet integration
+- **Storage**: JSON file-based storage system
+- **UI Components**: Custom components with shadcn/ui
+- **Notifications**: Sonner toast notifications
+
+## 📁 Project Structure
+
+```
+pulley/
+├── app/                          # Next.js app directory
+│   ├── api/                      # API routes
+│   │   ├── comments/             # Comment management
+│   │   ├── disputes/             # Dispute management
+│   │   ├── notify/               # Notification system
+│   │   └── webhook/              # Webhook handlers
+│   ├── disputes/                 # Dispute pages
+│   │   └── [id]/                 # Individual dispute pages
+│   ├── profile/                  # User profile
+│   ├── search/                   # Search functionality
+│   └── test-wagmi/               # Wagmi testing
+├── components/                   # React components
+│   ├── ui/                       # UI components (shadcn/ui)
+│   ├── ContractActions.tsx       # Smart contract interactions
+│   ├── DisputeCard.tsx           # Dispute display component
+│   ├── DisputeDashboard.tsx      # Main dispute interface
+│   ├── DisputesManagement.tsx    # Dispute creation/management
+│   ├── NetworkSwitcher.tsx       # Network switching component
+│   └── ...                       # Other components
+├── contracts/                    # Smart contract files
+│   ├── contractabi.ts            # Contract ABI
+│   ├── contractaddress.ts        # Contract addresses
+│   └── bettingcontractabi.ts     # Betting contract ABI
+├── data/                         # JSON data storage
+│   └── comments/                 # Comment data files
+├── integration/                  # Integration modules
+│   ├── bettingIntegration.tsx    # Betting functionality
+│   └── integration.tsx           # Main integration
+├── lib/                          # Utility libraries
+│   ├── contracts.ts              # Contract configuration
+│   ├── disputes.ts               # Dispute API functions
+│   ├── comments.ts               # Comment management
+│   └── hooks/                    # Custom React hooks
+└── public/                       # Static assets
 ```
 
-2. Verify environment variables, these will be set up by the `npx create-onchain --mini` command:
+## 🚀 Getting Started
 
-You can regenerate the FARCASTER Account Association environment variables by running `npx create-onchain --manifest` in your project directory.
+### Prerequisites
+- Node.js 18+ 
+- pnpm (recommended) or npm
+- A Web3 wallet (Coinbase Wallet recommended)
 
-The environment variables enable the following features:
+### Installation
 
-- Frame metadata - Sets up the Frame Embed that will be shown when you cast your frame
-- Account association - Allows users to add your frame to their account, enables notifications
-- Redis API keys - Enable Webhooks and background notifications for your application by storing users notification details
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd pulley
+   ```
 
-```bash
-# Shared/OnchainKit variables
-NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME=
-NEXT_PUBLIC_URL=
-NEXT_PUBLIC_ICON_URL=
-NEXT_PUBLIC_ONCHAINKIT_API_KEY=
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   # or
+   npm install
+   ```
 
-# Frame metadata
-FARCASTER_HEADER=
-FARCASTER_PAYLOAD=
-FARCASTER_SIGNATURE=
-NEXT_PUBLIC_APP_ICON=
-NEXT_PUBLIC_APP_SUBTITLE=
-NEXT_PUBLIC_APP_DESCRIPTION=
-NEXT_PUBLIC_APP_SPLASH_IMAGE=
-NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR=
-NEXT_PUBLIC_APP_PRIMARY_CATEGORY=
-NEXT_PUBLIC_APP_HERO_IMAGE=
-NEXT_PUBLIC_APP_TAGLINE=
-NEXT_PUBLIC_APP_OG_TITLE=
-NEXT_PUBLIC_APP_OG_DESCRIPTION=
-NEXT_PUBLIC_APP_OG_IMAGE=
+3. **Set up environment variables**
+   Create a `.env.local` file:
+   ```env
+   NEXT_PUBLIC_BASE_URL=http://localhost:3000
+   # Add other environment variables as needed
+   ```
 
-# Redis config
-REDIS_URL=
-REDIS_TOKEN=
+4. **Run the development server**
+   ```bash
+   pnpm dev
+   # or
+   npm run dev
+   ```
+
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 🔧 Configuration
+
+### Network Configuration
+The app supports multiple networks:
+- **Base** (default)
+- **Ethereum Mainnet**
+- **Polygon**
+
+Network switching is handled automatically through the `NetworkSwitcher` component.
+
+### Contract Configuration
+Update contract addresses in `contracts/contractaddress.ts`:
+```typescript
+export const contractAddress = "0x944f3c7305598e724aBFBAAEc4ee93a3b2Db7DDa";
+export const bettingContractAddress = "0x944f3c7305598e724aBFBAAEc4ee93a3b2Db7DDa";
 ```
 
-3. Start the development server:
-```bash
-npm run dev
+## 📊 Data Storage
+
+### JSON-Based Storage
+The platform uses a JSON file-based storage system for:
+- **Disputes**: Stored in `data/disputes/disputes.json`
+- **Comments**: Stored in `data/comments/[disputeId].json`
+
+### API Endpoints
+- `GET /api/disputes` - List all disputes
+- `POST /api/disputes` - Create a new dispute
+- `GET /api/disputes/[id]` - Get specific dispute
+- `GET /api/disputes/creator/[address]` - Get disputes by creator
+- `GET /api/comments/[disputeId]` - Get comments for dispute
+- `POST /api/comments/[disputeId]` - Add comment to dispute
+
+## 🎯 Usage
+
+### Creating a Dispute
+1. Connect your wallet
+2. Navigate to "Create Dispute"
+3. Choose dispute type (General or Opponent)
+4. Fill in dispute details
+5. Submit and share the invite link
+
+### Participating in Disputes
+1. Click on any dispute card
+2. View dispute details and evidence
+3. Add comments and vote
+4. For opponent disputes, submit evidence
+
+### Network Switching
+Use the network switcher in the header to switch between supported networks.
+
+## 🔗 Smart Contract Integration
+
+The platform integrates with smart contracts for:
+- Dispute creation and management
+- Escrow functionality
+- Voting and resolution
+- Evidence submission
+
+### Contract Functions
+- `createDispute()` - Create new disputes
+- `castVote()` - Vote on disputes
+- `submitEvidence()` - Submit evidence
+- `getDisputeBasicInfo()` - Retrieve dispute data
+
+## 🎨 UI/UX Features
+
+- **Responsive Design**: Works on desktop and mobile
+- **Dark/Light Theme**: CSS variable-based theming
+- **Toast Notifications**: Real-time feedback
+- **Loading States**: Smooth user experience
+- **Error Handling**: Graceful error management
+
+## 🧪 Testing
+
+### Wagmi Testing
+Test Web3 functionality in the test page:
+```
+/test-wagmi
 ```
 
-## Template Features
+### Development Tools
+- TypeScript for type safety
+- ESLint for code quality
+- Tailwind CSS for styling
 
-### Frame Configuration
-- `.well-known/farcaster.json` endpoint configured for Frame metadata and account association
-- Frame metadata automatically added to page headers in `layout.tsx`
+## 🚀 Deployment
 
-### Background Notifications
-- Redis-backed notification system using Upstash
-- Ready-to-use notification endpoints in `api/notify` and `api/webhook`
-- Notification client utilities in `lib/notification-client.ts`
+### Vercel (Recommended)
+1. Push code to GitHub
+2. Connect repository to Vercel
+3. Set environment variables
+4. Deploy
 
-### Theming
-- Custom theme defined in `theme.css` with OnchainKit variables
-- Pixel font integration with Pixelify Sans
-- Dark/light mode support through OnchainKit
+### Environment Variables for Production
+```env
+NEXT_PUBLIC_BASE_URL=https://your-domain.com
+```
 
-### MiniKit Provider
-The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
-- OnchainKit integration
-- Access to Frame context
-- Sets up Wagmi Connectors
-- Sets up Frame SDK listeners
-- Applies Safe Area Insets
+## 🤝 Contributing
 
-## Customization
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-To get started building your own frame, follow these steps:
+## 📝 License
 
-1. Remove the DemoComponents:
-   - Delete `components/DemoComponents.tsx`
-   - Remove demo-related imports from `page.tsx`
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-2. Start building your Frame:
-   - Modify `page.tsx` to create your Frame UI
-   - Update theme variables in `theme.css`
-   - Adjust MiniKit configuration in `providers.tsx`
+## 🆘 Support
 
-3. Add your frame to your account:
-   - Cast your frame to see it in action
-   - Share your frame with others to start building your community
+For support and questions:
+- Create an issue in the repository
+- Check the documentation
+- Review the code comments
 
-## Learn More
+## 🔮 Roadmap
 
-- [MiniKit Documentation](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit Documentation](https://docs.base.org/builderkits/onchainkit/getting-started)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [ ] Enhanced betting integration
+- [ ] NFT rewards system
+- [ ] Advanced dispute resolution
+- [ ] Mobile app development
+- [ ] Multi-language support
+- [ ] Advanced analytics
+
+---
+
+**Built with ❤️ for the decentralized future**
